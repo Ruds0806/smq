@@ -731,6 +731,8 @@ def seed_master_data(db: Session = Depends(get_db)):  # noqa: C901
         poli_id = poli_map.get(d["poli"])
         if not poli_id:
             continue
+        # Assign photo based on gender
+        photo_filename = "doctor-male.jpg" if d["gender"] == "L" else "doctor-female.jpg"
         existing = db.query(Doctor).filter(Doctor.full_name == d["name"]).first()
         if not existing:
             db.add(Doctor(
@@ -741,7 +743,7 @@ def seed_master_data(db: Session = Depends(get_db)):  # noqa: C901
                 bio=d["bio"],
                 education=d["edu"],
                 practice_days=d["days"],
-                photo_filename=None,
+                photo_filename=photo_filename,
             ))
         else:
             existing.specialization = d["spec"]
@@ -750,6 +752,7 @@ def seed_master_data(db: Session = Depends(get_db)):  # noqa: C901
             existing.bio = d["bio"]
             existing.education = d["edu"]
             existing.practice_days = d["days"]
+            existing.photo_filename = photo_filename
     db.commit()
 
     # ── 3. Schedules ─────────────────────────────────────────────────────────

@@ -18,8 +18,9 @@ class _QueueDashboardPageState extends State<QueueDashboardPage>
     with SingleTickerProviderStateMixin {
   Map<String, dynamic>? data;
   Map<String, dynamic>? profile;
-  List<dynamic> polis   = [];
-  List<dynamic> doctors = [];
+  List<dynamic> polis        = [];
+  List<dynamic> doctors      = [];
+  List<dynamic> visitHistory = [];
   Timer?    _pollTimer;
   WsClient? _ws;
   bool _cancelling  = false;
@@ -57,7 +58,7 @@ class _QueueDashboardPageState extends State<QueueDashboardPage>
   }
 
   Future<void> _bootstrap() =>
-      Future.wait([_fetchDashboard(), _fetchProfile(), _fetchPolis(), _fetchDoctors()]);
+      Future.wait([_fetchDashboard(), _fetchProfile(), _fetchPolis(), _fetchDoctors(), _fetchVisitHistory()]);
 
   Future<void> _fetchDashboard() async {
     final token = context.read<SessionStore>().token;
@@ -91,6 +92,15 @@ class _QueueDashboardPageState extends State<QueueDashboardPage>
       final res = await ApiClient().getJson('/admin/doctors');
       if (!mounted) return;
       setState(() => doctors = res as List<dynamic>);
+    } catch (_) {}
+  }
+
+  Future<void> _fetchVisitHistory() async {
+    final token = context.read<SessionStore>().token;
+    try {
+      final res = await ApiClient().getJson('/history/visits', token: token);
+      if (!mounted) return;
+      setState(() => visitHistory = (res as List<dynamic>).take(5).toList());
     } catch (_) {}
   }
 
@@ -194,6 +204,13 @@ class _QueueDashboardPageState extends State<QueueDashboardPage>
                       const SizedBox(height: 18),
                       _buildQueueCard(isDark, hasTicket, status, canCancel),
                       const SizedBox(height: 28),
+                      // Recent visit history
+                      if (visitHistory.isNotEmpty) ...[
+                        _buildSectionHeader('Riwayat Penyakit Terakhir', isDark),
+                        const SizedBox(height: 12),
+                        _buildVisitHistoryCard(isDark),
+                        const SizedBox(height: 28),
+                      ],
                       _buildSectionHeader('Layanan Tersedia', isDark),
                       const SizedBox(height: 12),
                       _buildTabSelector(isDark),
@@ -977,6 +994,169 @@ class _QueueDashboardPageState extends State<QueueDashboardPage>
           ],
         ),
       );
+
+  Widget _buildVisitHistoryCard(bool isDark) {
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? kSurfaceDark : kSurface,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: isDark ? kSeparatorDark : kSeparator),
+      ),
+      child: Column(
+        children: [
+          ...visitHistory.asMap().entries.map((entry) {
+            final i   = entry.key;
+            final row = entry.value as Map<String, dynamic>;
+            final isLast = i == visitHistory.length - 1;
+            return Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 16, vertical: 13),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: 38,
+                        height: 38,
+                        decoration: BoxDecoration(
+                          color: kGreen.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(
+                            Icons.medical_services_rounded,
+                            color: kGreen,
+                            size: 18),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    row['doctor_name']?.toString() ?? '',
+                                    style: TextStyle(
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: 13.5,
+                                        color: isDark
+                                            ? kLabelDark
+                                            : kLabel),
+                                  ),
+                                ),
+                                Text(
+                                  row['visit_date']?.toString() ?? '',
+                                  style: TextStyle(
+                                      fontSize: 11,
+                                      color: isDark
+                                          ? kSecondaryLabelDark
+                                          : kSecondaryLabel),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              row['poli_name']?.toString() ?? '',
+                              style: TextStyle(
+                                  fontSize: 12,
+                                  color: kPrimary,
+                                  fontWeight: FontWeight.w600),
+                            ),
+                            if ((row['diagnosis_summary'] as String? ?? '')
+                                .isNotEmpty) ...[
+                              const SizedBox(height: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 10, vertical: 7),
+                                decoration: BoxDecoration(
+                                  color: isDark
+                                      ? kSurface2Dark
+                                      : kBackground,
+                                  borderRadius:
+                                      BorderRadius.circular(8),
+                                ),
+                                child: Row(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.start,
+                                  children: [
+                                    Icon(Icons.notes_rounded,
+                                        size: 12,
+                                        color: isDark
+                                            ? kSecondaryLabelDark
+                                            : kSecondaryLabel),
+                                    const SizedBox(width: 6),
+                                    Expanded(
+                                      child: Text(
+                                        row['diagnosis_summary']
+                                            .toString(),
+                                        style: TextStyle(
+                                            fontSize: 12,
+                                            color: isDark
+                                                ? kSecondaryLabelDark
+                                                : kSecondaryLabel,
+                                            fontStyle: FontStyle.italic,
+                                            height: 1.4),
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (!isLast)
+                  Divider(
+                      height: 0.5,
+                      thickness: 0.5,
+                      indent: 66,
+                      color: isDark ? kSeparatorDark : kSeparator),
+              ],
+            );
+          }),
+          // View all button
+          InkWell(
+            onTap: () => Navigator.pushNamed(context, '/history'),
+            borderRadius: const BorderRadius.vertical(
+                bottom: Radius.circular(18)),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              decoration: BoxDecoration(
+                color: kPrimary.withValues(alpha: 0.04),
+                borderRadius: const BorderRadius.vertical(
+                    bottom: Radius.circular(18)),
+                border: Border(
+                    top: BorderSide(
+                        color: isDark ? kSeparatorDark : kSeparator,
+                        width: 0.5)),
+              ),
+              child: const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text('Lihat Semua Riwayat',
+                      style: TextStyle(
+                          fontSize: 13,
+                          color: kPrimary,
+                          fontWeight: FontWeight.w700)),
+                  SizedBox(width: 4),
+                  Icon(Icons.arrow_forward_rounded,
+                      size: 14, color: kPrimary),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   Widget _buildSectionHeader(String title, bool isDark) => Row(
         children: [
