@@ -1,0 +1,52 @@
+workflows:
+  android-release:
+    name: Android Release
+    max_build_duration: 60
+    environment:
+      flutter: stable
+    working_directory: mobile_app
+    scripts:
+      - name: Get Flutter packages
+        script: flutter pub get
+      - name: Build APK
+        script: |
+          flutter build apk --release \
+            --dart-define=API_ORIGIN=https://api.yourhospital.com
+    artifacts:
+      - mobile_app/build/app/outputs/flutter-apk/app-release.apk
+
+  ios-release:
+    name: iOS Release
+    max_build_duration: 60
+    environment:
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+    working_directory: mobile_app
+    scripts:
+      - name: Get Flutter packages
+        script: flutter pub get
+      - name: Install CocoaPods
+        script: find . -name "Podfile" -execdir pod install \;
+      - name: Build iOS
+        script: |
+          flutter build ios --release --no-codesign \
+            --dart-define=API_ORIGIN=https://api.yourhospital.com
+    artifacts:
+      - mobile_app/build/ios/iphoneos/*.app
+
+  web-release:
+    name: Web Release
+    max_build_duration: 30
+    environment:
+      flutter: stable
+    working_directory: mobile_app
+    scripts:
+      - name: Get Flutter packages
+        script: flutter pub get
+      - name: Build Web
+        script: |
+          flutter build web --release --base-href / \
+            --dart-define=API_ORIGIN=https://api.yourhospital.com
+    artifacts:
+      - mobile_app/build/web.zip
