@@ -17,7 +17,7 @@ workflows:
 
   ios-release:
     name: iOS Release
-    max_build_duration: 60
+    max_build_duration: 90
     environment:
       flutter: stable
       xcode: latest
@@ -26,14 +26,26 @@ workflows:
     scripts:
       - name: Get Flutter packages
         script: flutter pub get
+
       - name: Install CocoaPods
         script: cd ios && pod install && cd ..
-      - name: Build iOS
+
+      - name: Build iOS (unsigned)
         script: |
-          flutter build ios --release --no-codesign \
+          flutter build ios --release \
+            --no-codesign \
             --dart-define=API_ORIGIN=https://api.yourhospital.com
+
+      - name: Package unsigned IPA
+        script: |
+          cd build/ios/iphoneos
+          mkdir -p Payload
+          cp -r Runner.app Payload/Runner.app
+          zip -r SmartQueueRS-unsigned.ipa Payload
+          mv SmartQueueRS-unsigned.ipa ../../../SmartQueueRS-unsigned.ipa
+
     artifacts:
-      - mobile_app/build/ios/iphoneos/*.app
+      - mobile_app/SmartQueueRS-unsigned.ipa
 
   web-release:
     name: Web Release
@@ -48,5 +60,7 @@ workflows:
         script: |
           flutter build web --release --base-href / \
             --dart-define=API_ORIGIN=https://api.yourhospital.com
+      - name: Zip web output
+        script: cd build && zip -r ../web-release.zip web/
     artifacts:
-      - mobile_app/build/web.zip
+      - mobile_app/web-release.zip
