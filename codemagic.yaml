@@ -11,7 +11,7 @@ workflows:
       - name: Build APK
         script: |
           flutter build apk --release \
-            --dart-define=API_ORIGIN=https://api.yourhospital.com
+            --dart-define=API_ORIGIN=https://unsubversively-subvitreous-braelyn.ngrok-free.dev
     artifacts:
       - mobile_app/build/app/outputs/flutter-apk/app-release.apk
 
@@ -34,7 +34,7 @@ workflows:
         script: |
           flutter build ios --release \
             --no-codesign \
-            --dart-define=API_ORIGIN=https://api.yourhospital.com
+            --dart-define=API_ORIGIN=https://unsubversively-subvitreous-braelyn.ngrok-free.dev
 
       - name: Package unsigned IPA
         script: |
@@ -59,7 +59,7 @@ workflows:
       - name: Build Web
         script: |
           flutter build web --release --base-href / \
-            --dart-define=API_ORIGIN=https://api.yourhospital.com
+            --dart-define=API_ORIGIN=https://unsubversively-subvitreous-braelyn.ngrok-free.dev
       - name: Zip web output
         script: cd build && zip -r ../web-release.zip web/
     artifacts:
