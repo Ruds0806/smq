@@ -1,0 +1,1372 @@
+﻿================================================================================
+  SMARTQUEUE RS - MANUAL PENGGUNAAN LENGKAP
+  Sistem Antrian Digital Rumah Sakit
+  Versi 2.0 | 2026
+================================================================================
+
+DAFTAR ISI
+----------
+  BAB 1  : Gambaran Umum Sistem
+  BAB 2  : Persyaratan dan Instalasi
+  BAB 3  : Menjalankan Backend Server
+  BAB 4  : Menjalankan Admin Web Dashboard
+  BAB 5  : Menjalankan Aplikasi Mobile / Kiosk
+  BAB 6  : Seed Data Demo (Pertama Kali)
+  BAB 7  : Sistem RBAC - Role dan Kredensial
+  BAB 8  : Panduan Admin Web - Panel Console Box
+  BAB 9  : Panduan Admin Web - Panel Petugas Panggil
+  BAB 10 : Panduan Admin Web - Panel Display Layar Tunggu
+  BAB 11 : Panduan Admin Web - Panel Administrator
+  BAB 12 : Panduan Aplikasi Mobile - Pasien
+  BAB 13 : Alur Status Antrian
+  BAB 14 : WebSocket Real-time
+  BAB 15 : Konfigurasi Produksi
+  BAB 16 : Troubleshooting
+
+================================================================================
+  BAB 1 - GAMBARAN UMUM SISTEM
+================================================================================
+
+SmartQueue RS adalah sistem manajemen antrian digital untuk rumah sakit yang
+terdiri dari tiga komponen utama:
+
+  1. BACKEND API  (Python / FastAPI)
+     - REST API + WebSocket real-time
+     - Database SQLite (dev) / PostgreSQL (produksi)
+     - Port default: 8100
+
+  2. ADMIN WEB DASHBOARD  (React / Vite)
+     - Diakses lewat browser oleh staf rumah sakit
+     - Port default: 5176 (dev) / static file (produksi)
+     - 4 panel: Console Box, Petugas Panggil, Display, Administrator
+
+  3. APLIKASI MOBILE / KIOSK  (Flutter)
+     - Digunakan pasien untuk ambil antrian online
+     - Target platform: Android, iOS, Web Browser, Windows (Kiosk)
+
+ALUR KERJA SINGKAT:
+  Pasien daftar/login -> Pilih poli & dokter -> Ambil nomor antrian
+  -> Pantau status real-time -> Dipanggil petugas -> Dilayani -> Selesai
+
+  Staf loket (Console) -> Daftarkan pasien on-site -> Cetak tiket
+  Petugas -> Panggil nomor berikutnya -> Update status
+  Display -> Tampilkan nomor yang dipanggil di layar tunggu
+
+================================================================================
+  BAB 2 - PERSYARATAN DAN INSTALASI
+================================================================================
+
+PERSYARATAN SISTEM:
+  - Python 3.11 atau lebih baru
+  - Node.js 18 atau lebih baru + npm
+  - Flutter SDK 3.3.0 atau lebih baru (untuk build mobile/kiosk)
+  - Git
+
+INSTALASI BACKEND:
+  1. Masuk ke folder backend:
+       cd smartqueue-rs/backend
+
+  2. Buat virtual environment:
+       python -m venv venv
+
+  3. Aktifkan virtual environment:
+       Windows : venv\Scripts\activate
+       Linux/Mac: source venv/bin/activate
+
+  4. Install dependensi:
+       pip install -r requirements.txt
+
+  5. Salin file konfigurasi:
+       copy .env.example .env        (Windows)
+       cp .env.example .env          (Linux/Mac)
+
+  6. Edit file .env sesuai kebutuhan (lihat BAB 3)
+
+INSTALASI ADMIN WEB:
+  1. Masuk ke folder admin_web:
+       cd smartqueue-rs/admin_web
+
+  2. Install dependensi:
+       npm install
+
+  3. File .env sudah tersedia dengan nilai default:
+       VITE_API_URL=http://localhost:8100
+
+INSTALASI FLUTTER (Mobile/Kiosk):
+  1. Masuk ke folder mobile_app:
+       cd smartqueue-rs/mobile_app
+
+  2. Install dependensi Flutter:
+       flutter pub get
+
+================================================================================
+  BAB 3 - MENJALANKAN BACKEND SERVER
+================================================================================
+
+LANGKAH MENJALANKAN:
+
+  1. Masuk ke folder backend dan aktifkan venv:
+       cd smartqueue-rs/backend
+       venv\Scripts\activate          (Windows)
+       source venv/bin/activate       (Linux/Mac)
+
+  2. Jalankan server:
+       uvicorn app.main:app --reload
+
+     Atau gunakan file batch yang sudah tersedia (Windows):
+       run_backend.bat
+
+  3. Server berhasil berjalan jika muncul:
+       INFO:     Uvicorn running on http://0.0.0.0:8100
+
+  4. Verifikasi dengan buka browser:
+       http://localhost:8100
+       Response: {"app": "SmartQueue RS API", "status": "ok"}
+
+  5. Dokumentasi API otomatis tersedia di:
+       http://localhost:8100/docs       (Swagger UI)
+       http://localhost:8100/redoc      (ReDoc)
+
+ISI FILE .env (backend):
+  SECRET_KEY=ganti-dengan-string-acak-panjang
+  DATABASE_URL=sqlite:///./smartqueue.db
+  ENVIRONMENT=development
+  ACCESS_TOKEN_EXPIRE_MINUTES=1440
+  ALLOWED_ORIGINS=http://localhost:5176,http://localhost:5173
+  FIREBASE_SERVER_KEY=
+  WHATSAPP_API_URL=
+  WHATSAPP_TOKEN=
+
+  CATATAN:
+  - ENVIRONMENT=development  -> CORS mengizinkan semua origin (aman untuk dev)
+  - ENVIRONMENT=production   -> CORS hanya mengizinkan origin di ALLOWED_ORIGINS
+  - SECRET_KEY wajib diganti di produksi. Generate dengan:
+      python -c "import secrets; print(secrets.token_hex(32))"
+
+DATABASE:
+  - SQLite otomatis dibuat di backend/smartqueue.db saat server pertama kali jalan
+  - Migrasi kolom baru juga otomatis dijalankan saat startup
+  - Tidak perlu menjalankan perintah migrasi manual
+
+================================================================================
+  BAB 4 - MENJALANKAN ADMIN WEB DASHBOARD
+================================================================================
+
+MODE DEVELOPMENT:
+  1. Pastikan backend sudah berjalan di port 8100
+
+  2. Masuk ke folder admin_web:
+       cd smartqueue-rs/admin_web
+
+  3. Jalankan dev server:
+       npm run dev
+
+  4. Buka browser:
+       http://localhost:5176
+
+MODE PRODUKSI (build statis):
+  1. Build:
+       npm run build
+
+  2. Folder hasil build: admin_web/dist/
+
+  3. Deploy folder dist/ ke web server (Nginx, Apache, Vercel, dll)
+
+  4. Sebelum build produksi, buat file .env.production:
+       VITE_API_URL=https://api.rumahsakit.com
+
+================================================================================
+  BAB 5 - MENJALANKAN APLIKASI MOBILE / KIOSK
+================================================================================
+
+ANDROID (Emulator atau Perangkat Fisik):
+  cd smartqueue-rs/mobile_app
+  flutter run -d android
+
+  Build APK release:
+  flutter build apk --release
+  Output: build/app/outputs/flutter-apk/app-release.apk
+
+  Build App Bundle (Play Store):
+  flutter build appbundle --release
+
+  Arahkan ke server jaringan lokal:
+  flutter run --dart-define=API_ORIGIN=http://192.168.1.100:8100
+
+iOS (Membutuhkan macOS + Xcode 14+):
+  cd smartqueue-rs/mobile_app/ios
+  pod install
+  cd ..
+  flutter run -d ios
+
+  Build release:
+  flutter build ios --release
+  Lalu buka ios/Runner.xcworkspace di Xcode untuk archive & upload App Store
+
+WEB BROWSER:
+  flutter run -d chrome
+
+  Build produksi:
+  flutter build web --release --base-href /
+  Output: build/web/ -> deploy ke Nginx/Vercel/Netlify
+
+WINDOWS DESKTOP / KIOSK:
+  flutter run -d windows
+
+  Build release:
+  flutter build windows --release
+  Output: build/windows/x64/runner/Release/smartqueue_rs.exe
+
+  Arahkan ke backend lokal:
+  flutter build windows --release --dart-define=API_ORIGIN=http://localhost:8100
+
+  Arahkan ke server jaringan:
+  flutter build windows --release --dart-define=API_ORIGIN=http://192.168.1.100:8100
+
+  Ukuran window kiosk: 1280x800 (sudah dikonfigurasi di windows/runner/main.cpp)
+
+================================================================================
+  BAB 6 - SEED DATA DEMO (PERTAMA KALI)
+================================================================================
+
+Setelah backend berjalan untuk pertama kali, jalankan seed data untuk mengisi
+data master (poli, dokter, jadwal, pasien demo, antrian demo, admin users).
+
+CARA MENJALANKAN SEED:
+
+  Opsi A - Lewat browser / Swagger UI:
+    Buka: http://localhost:8100/docs
+    Cari endpoint: POST /api/v1/admin/seed
+    Klik Try it out -> Execute
+
+  Opsi B - Lewat curl (terminal):
+    curl -X POST http://localhost:8100/api/v1/admin/seed
+
+  Opsi C - Lewat PowerShell:
+    Invoke-RestMethod -Method POST -Uri http://localhost:8100/api/v1/admin/seed
+
+DATA YANG DIBUAT OLEH SEED:
+
+  POLI (4 poli):
+    - Poli Umum
+    - Poli Anak
+    - Poli Jantung
+    - Poli Mata
+
+  DOKTER (2 dokter per poli = 8 dokter total):
+    - dr. Umum 1, dr. Umum 2  (Poli Umum)
+    - dr. Anak 1, dr. Anak 2  (Poli Anak)
+    - dr. Jantung 1, dr. Jantung 2  (Poli Jantung)
+    - dr. Mata 1, dr. Mata 2  (Poli Mata)
+
+  JADWAL (2 jadwal per dokter):
+    - Pagi : 08:00 - 12:00, kuota 40
+    - Siang: 13:00 - 16:00, kuota 30
+
+  PASIEN DEMO (3 pasien):
+    +------------------+----------------+--------------------+----------+
+    | Nama             | No. HP         | No. Rekam Medis    | Password |
+    +------------------+----------------+--------------------+----------+
+    | Siti Aisyah      | 0811111111     | RM-0001            | 123456   |
+    | Budi Santoso     | 0822222222     | RM-0002            | 123456   |
+    | Rina Marlina     | 0833333333     | RM-0003            | 123456   |
+    +------------------+----------------+--------------------+----------+
+
+  ADMIN USERS (4 akun - lihat BAB 7 untuk detail RBAC):
+    - administrator / admin123
+    - petugas       / panggil123
+    - console       / console123
+    - display       / display123
+
+  ANTRIAN DEMO (3 tiket):
+    - A-001: Siti Aisyah   -> status: waiting
+    - A-002: Budi Santoso  -> status: called (on-site)
+    - A-003: Rina Marlina  -> status: serving
+
+CATATAN:
+  - Seed hanya mengisi data jika tabel masih kosong
+  - Aman dijalankan berulang kali (tidak duplikasi)
+  - Untuk reset total: POST /api/v1/admin/queue-reset (hapus semua antrian)
+
+================================================================================
+  BAB 7 - SISTEM RBAC (ROLE-BASED ACCESS CONTROL)
+================================================================================
+
+SmartQueue RS memiliki DUA sistem autentikasi yang terpisah:
+
+  1. AUTENTIKASI PASIEN  -> Untuk aplikasi mobile Flutter
+  2. AUTENTIKASI ADMIN   -> Untuk admin web dashboard
+
+------------------------------------------------------------------------
+  7.1 AUTENTIKASI PASIEN (Aplikasi Mobile)
+------------------------------------------------------------------------
+
+Pasien login menggunakan salah satu dari tiga identifier:
+  - NIK (Nomor Induk Kependudukan)
+  - No. Rekam Medis (contoh: RM-0001)
+  - No. HP (contoh: 0811111111)
+
+Endpoint: POST /api/v1/auth/patient-login
+Body: { "identifier": "RM-0001", "password": "123456" }
+
+Token JWT dikembalikan dan disimpan di perangkat (SharedPreferences).
+Token berlaku selama 1440 menit (24 jam) secara default.
+
+AKUN PASIEN DEMO (setelah seed):
+  +------------------+--------------------+----------+
+  | Identifier       | Nilai              | Password |
+  +------------------+--------------------+----------+
+  | No. Rekam Medis  | RM-0001            | 123456   |
+  | NIK              | 3201010101010001   | 123456   |
+  | No. HP           | 0811111111         | 123456   |
+  +------------------+--------------------+----------+
+  | No. Rekam Medis  | RM-0002            | 123456   |
+  | NIK              | 3201010101010002   | 123456   |
+  | No. HP           | 0822222222         | 123456   |
+  +------------------+--------------------+----------+
+  | No. Rekam Medis  | RM-0003            | 123456   |
+  | NIK              | 3201010101010003   | 123456   |
+  | No. HP           | 0833333333         | 123456   |
+  +------------------+--------------------+----------+
+
+------------------------------------------------------------------------
+  7.2 AUTENTIKASI ADMIN (Admin Web Dashboard)
+------------------------------------------------------------------------
+
+Endpoint: POST /api/v1/admin/auth/login
+Body: { "username": "administrator", "password": "admin123" }
+
+DAFTAR ROLE DAN HAK AKSES:
+
+  +---------------+-------------+------------------------------------------+
+  | Role          | Username    | Akses Panel                              |
+  +---------------+-------------+------------------------------------------+
+  | administrator | administrator | SEMUA panel (Console, Petugas,         |
+  |               |             | Display, Administrator)                  |
+  +---------------+-------------+------------------------------------------+
+  | console       | console     | Console Box saja                         |
+  |               |             | (pendaftaran pasien on-site)             |
+  +---------------+-------------+------------------------------------------+
+  | petugas       | petugas     | Petugas Panggil saja                     |
+  |               |             | (panggil nomor, update status)          |
+  +---------------+-------------+------------------------------------------+
+  | display       | display     | Display Layar Tunggu saja                |
+  |               |             | (tampilan nomor antrian di TV/monitor)  |
+  +---------------+-------------+------------------------------------------+
+
+KREDENSIAL DEFAULT (setelah seed):
+  +---------------+-------------+
+  | Username      | Password    |
+  +---------------+-------------+
+  | administrator | admin123    |
+  | petugas       | panggil123  |
+  | console       | console123  |
+  | display       | display123  |
+  +---------------+-------------+
+
+PENTING: Ganti semua password default sebelum digunakan di produksi!
+  Caranya: Panel Administrator -> Tab Manajemen User -> Buat user baru
+
+DETAIL HAK AKSES PER ROLE:
+
+  ADMINISTRATOR:
+  - Akses semua 4 panel
+  - Buat/hapus jadwal dokter
+  - Buat/hapus poli
+  - Tambah/edit/hapus dokter
+  - Buat user admin baru
+  - Lihat audit log
+  - Lihat analytics (rata-rata waktu layanan, tren harian)
+  - Download laporan Excel
+  - Reset semua antrian
+  - Seed data demo
+
+  CONSOLE:
+  - Daftarkan pasien on-site (tanpa akun mobile)
+  - Cetak tiket antrian
+  - Update status tiket
+  - Lihat log aktivitas
+
+  PETUGAS:
+  - Panggil nomor antrian berikutnya (Admin/Poli/Farmasi)
+  - Update status tiket (serving, done, no_show)
+  - Lihat antrian aktif
+  - Ulangi pengumuman suara
+
+  DISPLAY:
+  - Tampilkan nomor yang sedang dipanggil
+  - Kelola video/media layar tunggu
+  - Mode fullscreen untuk TV/monitor
+  - Pengumuman suara otomatis (Text-to-Speech)
+
+================================================================================
+  BAB 8 - PANDUAN ADMIN WEB - PANEL CONSOLE BOX
+================================================================================
+
+Panel Console Box digunakan oleh STAF LOKET untuk mendaftarkan pasien yang
+datang langsung ke rumah sakit (on-site / walk-in), tanpa perlu akun mobile.
+
+CARA MENGAKSES:
+  1. Buka http://localhost:5176
+  2. Login dengan: console / console123
+     (atau administrator / admin123 untuk akses semua panel)
+  3. Klik tombol [Console Box] di navigasi atas
+
+------------------------------------------------------------------------
+  8.1 PENDAFTARAN PASIEN ON-SITE
+------------------------------------------------------------------------
+
+LANGKAH-LANGKAH:
+
+  1. ISI FORM PENDAFTARAN:
+     - Nama Lengkap Pasien  [WAJIB]
+       Contoh: Agus Setiawan
+
+     - No. HP               [WAJIB]
+       Contoh: 0812345678
+       Catatan: Jika pasien sudah terdaftar dengan nomor ini,
+                data lama akan diperbarui (upsert)
+
+     - NIK                  [Opsional]
+       16 digit Nomor Induk Kependudukan
+
+     - No. Rekam Medis      [Opsional]
+       Contoh: RM-0045
+
+     - Tanggal Lahir        [Opsional]
+       Format: YYYY-MM-DD
+
+  2. PILIH LAYANAN:
+     - Poli     : Pilih dari dropdown (contoh: Poli Umum)
+     - Dokter   : Otomatis difilter sesuai poli yang dipilih
+     - Jadwal   : Pilih tanggal dan jam, terlihat sisa kuota
+                  Jadwal dengan sisa kuota 0 tidak bisa dipilih
+
+  3. KLIK [Daftarkan & Cetak Tiket]
+
+  4. TIKET MUNCUL di bawah form:
+     - Nomor antrian besar (contoh: A-007)
+     - Nama pasien, poli, dokter, jadwal
+     - Posisi antrian dan estimasi waktu tunggu
+
+  5. CETAK TIKET:
+     - Klik tombol [Cetak] di pojok kanan tiket
+     - Jendela print browser akan terbuka otomatis
+     - Format cetak: monospace, cocok untuk printer thermal
+
+LOGIKA UPSERT PASIEN:
+  - Sistem mencari pasien berdasarkan NIK -> No. RM -> No. HP
+  - Jika ditemukan: data diperbarui (nama, NIK, No. RM jika kosong)
+  - Jika tidak ditemukan: pasien baru dibuat
+  - Password sementara dibuat otomatis: 'onsite-' + 4 digit terakhir HP
+    Pasien bisa login mobile dengan password ini lalu menggantinya
+
+------------------------------------------------------------------------
+  8.2 UPDATE STATUS TIKET
+------------------------------------------------------------------------
+
+Digunakan untuk mengubah status tiket secara manual.
+
+LANGKAH:
+  1. Isi kolom [No. Tiket] dengan nomor tiket (contoh: A-007)
+  2. Pilih [Status Baru]:
+     - Serving  : Pasien sedang dilayani
+     - Done     : Pelayanan selesai
+     - No Show  : Pasien tidak hadir
+     - Waiting  : Kembalikan ke antrian (dari called)
+  3. Klik [Update Status]
+
+ATURAN TRANSISI STATUS (tidak bisa dilanggar):
+  waiting  -> called, cancelled
+  called   -> serving, no_show, waiting
+  serving  -> done
+  done     -> (tidak bisa diubah)
+  cancelled-> (tidak bisa diubah)
+  no_show  -> (tidak bisa diubah)
+
+------------------------------------------------------------------------
+  8.3 LOG AKTIVITAS
+------------------------------------------------------------------------
+
+Di bagian bawah panel Console Box terdapat kotak log real-time yang
+menampilkan semua aktivitas yang terjadi selama sesi ini:
+  - Pendaftaran on-site baru
+  - Update status tiket
+  - Panggilan nomor antrian
+  - Reset antrian
+
+Log disimpan maksimal 100 entri terakhir per sesi.
+
+================================================================================
+  BAB 9 - PANDUAN ADMIN WEB - PANEL PETUGAS PANGGIL
+================================================================================
+
+Panel Petugas Panggil digunakan oleh PETUGAS ANTRIAN untuk memanggil nomor
+berikutnya dan memperbarui status pelayanan.
+
+CARA MENGAKSES:
+  1. Login dengan: petugas / panggil123
+  2. Klik tombol [Petugas Panggil] di navigasi atas
+
+------------------------------------------------------------------------
+  9.1 STATISTIK ANTRIAN REAL-TIME
+------------------------------------------------------------------------
+
+Di bagian atas panel terdapat 3 kotak statistik yang diperbarui otomatis:
+  - ADMIN    : Jumlah antrian menunggu di layanan administrasi
+  - POLI     : Jumlah antrian menunggu di poli (semua poli medis)
+  - FARMASI  : Jumlah antrian menunggu di farmasi
+
+Klasifikasi layanan berdasarkan nama poli:
+  - Nama poli mengandung 'farmasi' -> layanan FARMASI
+  - Nama poli mengandung 'admin'   -> layanan ADMIN
+  - Semua poli lainnya             -> layanan POLI
+
+------------------------------------------------------------------------
+  9.2 MEMANGGIL NOMOR ANTRIAN
+------------------------------------------------------------------------
+
+LANGKAH:
+  1. Klik salah satu tombol panggil:
+     - [Panggil Admin]    -> Memanggil nomor terdepan di antrian Admin
+     - [Panggil Poli]     -> Memanggil nomor terdepan di antrian Poli
+     - [Panggil Farmasi]  -> Memanggil nomor terdepan di antrian Farmasi
+
+  2. Sistem otomatis:
+     - Mengubah status tiket dari 'waiting' ke 'called'
+     - Mencatat waktu panggilan (called_at)
+     - Mengirim event WebSocket ke semua klien terhubung
+     - Memperbarui Display Layar Tunggu secara real-time
+     - Membunyikan pengumuman suara (Text-to-Speech bahasa Indonesia)
+     - Mencatat ke audit log
+
+  3. Pengumuman suara yang dibunyikan:
+     'Nomor antrian [A-007]. Atas nama [Nama Pasien].
+      Silakan menuju layanan [POLI/ADMIN/FARMASI].'
+
+  4. Jika tidak ada antrian yang menunggu:
+     Muncul pesan error: 'Belum ada antrian waiting untuk [layanan]'
+
+------------------------------------------------------------------------
+  9.3 UPDATE STATUS TIKET
+------------------------------------------------------------------------
+
+Sama seperti di Console Box, petugas bisa update status tiket:
+  1. Isi No. Tiket (contoh: A-007)
+  2. Pilih status: Serving / Done / No Show
+  3. Klik [Update Status]
+
+ALUR NORMAL PELAYANAN:
+  Petugas klik [Panggil Poli]
+    -> Status tiket: waiting -> called
+    -> Pasien datang ke loket
+  Petugas klik [Update Status] -> Serving
+    -> Status tiket: called -> serving
+    -> Waktu mulai layanan dicatat (serving_at)
+  Petugas klik [Update Status] -> Done
+    -> Status tiket: serving -> done
+    -> Waktu selesai dicatat (done_at)
+    -> Durasi layanan dihitung otomatis (actual_serve_minutes)
+
+------------------------------------------------------------------------
+  9.4 DAFTAR ANTRIAN AKTIF
+------------------------------------------------------------------------
+
+Di bagian bawah panel terdapat daftar semua tiket dengan status 'waiting',
+diurutkan berdasarkan posisi antrian (terdepan di atas).
+
+Setiap item menampilkan:
+  - Nomor tiket (contoh: A-007)
+  - Nama pasien
+  - Sumber pendaftaran: Online / On-site
+  - Layanan: ADMIN / POLI / FARMASI
+  - Badge status berwarna
+
+Daftar diperbarui otomatis setiap 15 detik dan saat ada event WebSocket.
+
+================================================================================
+  BAB 10 - PANDUAN ADMIN WEB - PANEL DISPLAY LAYAR TUNGGU
+================================================================================
+
+Panel Display digunakan untuk menampilkan nomor antrian yang sedang dipanggil
+di layar besar (TV/monitor) di ruang tunggu pasien.
+
+CARA MENGAKSES:
+  1. Login dengan: display / display123
+  2. Klik tombol [Display] di navigasi atas
+
+------------------------------------------------------------------------
+  10.1 TAMPILAN UTAMA DISPLAY
+------------------------------------------------------------------------
+
+Panel Display terdiri dari dua bagian:
+
+  KIRI - Stage Utama:
+  - Menampilkan nomor antrian yang BARU SAJA dipanggil dalam ukuran besar
+  - Warna background berubah sesuai layanan:
+    * Biru  : Layanan POLI (default)
+    * Oranye: Layanan ADMIN
+    * Hijau : Layanan FARMASI
+  - Teks notifikasi di bawah nomor (nama pasien dan tujuan layanan)
+  - Sub-grid 3 kotak: menampilkan nomor terakhir dipanggil per layanan
+    (Admin / Poli / Farmasi)
+
+  KANAN - Kotak Nomor Terakhir per Layanan:
+  - 3 kotak berwarna menampilkan nomor terakhir yang dipanggil:
+    * Biru  : Admin
+    * Oranye: Poli
+    * Hijau : Farmasi
+  - Kotak yang aktif (baru dipanggil) memiliki outline terang
+
+------------------------------------------------------------------------
+  10.2 MODE FULLSCREEN
+------------------------------------------------------------------------
+
+Untuk penggunaan di TV atau monitor ruang tunggu:
+  1. Klik tombol [Fullscreen] di bagian atas panel Display
+  2. Tampilan akan memenuhi seluruh layar
+  3. Untuk keluar fullscreen: klik [Keluar Fullscreen] atau tekan Esc
+
+TIPS SETUP KIOSK DISPLAY:
+  - Buka browser di komputer yang terhubung ke TV
+  - Login sebagai 'display'
+  - Aktifkan fullscreen
+  - Nonaktifkan screensaver dan sleep mode di komputer
+
+------------------------------------------------------------------------
+  10.3 MEDIA VIDEO LAYAR TUNGGU
+------------------------------------------------------------------------
+
+Display mendukung pemutaran video di panel samping (untuk hiburan pasien).
+
+CARA MENAMBAH VIDEO:
+  1. Di bagian 'Video Layar Tunggu', klik [Pilih File]
+  2. Pilih file video dari komputer (MP4, WebM, dll)
+  3. Video akan diputar otomatis di panel samping
+  4. Judul video bisa diubah di kolom teks di atas tombol pilih file
+
+CATATAN:
+  - Video hanya tersimpan sementara (sesi browser)
+  - Saat halaman di-refresh, video perlu dipilih ulang
+  - Untuk video permanen, host file video di server dan masukkan URL-nya
+
+------------------------------------------------------------------------
+  10.4 PENGUMUMAN SUARA MANUAL
+------------------------------------------------------------------------
+
+Petugas bisa membunyikan ulang pengumuman suara untuk nomor yang sudah
+dipanggil sebelumnya:
+
+  1. Di bagian 'Ulangi Pengumuman', terdapat 3 tombol:
+     - [Ulangi Admin]   -> Bunyikan ulang nomor Admin terakhir
+     - [Ulangi Poli]    -> Bunyikan ulang nomor Poli terakhir
+     - [Ulangi Farmasi] -> Bunyikan ulang nomor Farmasi terakhir
+
+  2. Pengumuman menggunakan Web Speech API (Text-to-Speech)
+     Bahasa: Indonesia (id-ID), kecepatan: 0.92x
+
+  3. Jika belum ada nomor yang dipanggil, muncul pesan peringatan
+
+------------------------------------------------------------------------
+  10.5 UPDATE REAL-TIME
+------------------------------------------------------------------------
+
+Display diperbarui otomatis tanpa perlu refresh halaman:
+  - Saat petugas memanggil nomor baru -> Display langsung berubah
+  - Pengumuman suara berbunyi otomatis
+  - Indikator WebSocket (titik hijau) di pojok kanan atas menunjukkan
+    koneksi real-time aktif
+
+================================================================================
+  BAB 11 - PANDUAN ADMIN WEB - PANEL ADMINISTRATOR
+================================================================================
+
+Panel Administrator hanya bisa diakses oleh role 'administrator'.
+Berisi manajemen data master, laporan, dan konfigurasi sistem.
+
+CARA MENGAKSES:
+  1. Login dengan: administrator / admin123
+  2. Klik tombol [Administrator] di navigasi atas
+  3. Panel memiliki sub-tab di bagian atas
+
+------------------------------------------------------------------------
+  11.1 SUB-TAB OVERVIEW (Ringkasan)
+------------------------------------------------------------------------
+
+Menampilkan statistik keseluruhan sistem:
+  - Total tiket yang pernah dibuat
+  - Jumlah tiket menunggu saat ini
+  - Jumlah tiket selesai
+  - Total dokter terdaftar
+  - Total pasien terdaftar
+  - Perbandingan pendaftaran Online vs On-site
+
+------------------------------------------------------------------------
+  11.2 SUB-TAB JADWAL (Manajemen Jadwal Dokter)
+------------------------------------------------------------------------
+
+MEMBUAT JADWAL BARU:
+  1. Isi form:
+     - Dokter  : Pilih dari dropdown
+     - Poli    : Pilih dari dropdown
+     - Tanggal : Format YYYY-MM-DD (contoh: 2026-05-15)
+     - Jam Mulai: Format HH:MM (contoh: 08:00)
+     - Jam Selesai: Format HH:MM (contoh: 12:00)
+     - Kuota  : Jumlah maksimal pasien (default: 30)
+  2. Klik [Buat Jadwal]
+  3. Jadwal langsung tersedia untuk dipilih pasien di aplikasi mobile
+
+MENGHAPUS JADWAL:
+  - Klik ikon hapus di baris jadwal yang ingin dihapus
+  - Konfirmasi penghapusan
+  - CATATAN: Jadwal yang masih memiliki antrian aktif (waiting/called/serving)
+    tidak bisa dihapus
+
+DAFTAR JADWAL:
+  - Menampilkan semua jadwal dengan info: dokter, poli, tanggal, jam, kuota
+  - Kolom 'Sisa' menunjukkan kuota yang masih tersedia
+
+------------------------------------------------------------------------
+  11.3 SUB-TAB DOKTER (Manajemen Dokter)
+------------------------------------------------------------------------
+
+MENAMBAH DOKTER BARU:
+  1. Isi form:
+     - Nama Lengkap  : Contoh: dr. Budi Santoso, Sp.PD
+     - Spesialisasi  : Contoh: Penyakit Dalam
+     - Poli          : Pilih poli yang sesuai
+     - Foto          : Upload foto dokter (JPG/PNG/WebP, opsional)
+  2. Klik [Tambah Dokter]
+
+MENGEDIT DOKTER:
+  - Klik tombol edit di baris dokter
+  - Ubah data yang diperlukan
+  - Upload foto baru jika ingin mengganti (foto lama otomatis dihapus)
+
+MENGHAPUS DOKTER:
+  - Dokter yang sudah memiliki jadwal atau antrian tidak bisa dihapus
+  - Hapus jadwal terkait terlebih dahulu
+
+FOTO DOKTER:
+  - Disimpan di folder: backend/uploads/doctors/
+  - Diakses via URL: http://localhost:8100/uploads/doctors/[nama-file]
+  - Format yang didukung: .jpg, .jpeg, .png, .webp
+
+------------------------------------------------------------------------
+  11.4 SUB-TAB LAPORAN (Laporan Kunjungan)
+------------------------------------------------------------------------
+
+Menampilkan tabel semua tiket antrian dengan detail lengkap:
+  - No. Tiket, Nama Pasien, Poli, Dokter
+  - Channel (Online/On-site)
+  - Status akhir
+  - Posisi antrian, estimasi waktu
+  - Waktu dibuat
+
+DOWNLOAD LAPORAN EXCEL:
+  - Klik tombol [Download Excel]
+  - File .xlsx otomatis terunduh
+  - Nama file: smartqueue-rs-laporan-kunjungan-[tanggal-jam].xlsx
+  - Berisi semua data tiket dalam format spreadsheet
+
+------------------------------------------------------------------------
+  11.5 SUB-TAB ANALYTICS (Analitik)
+------------------------------------------------------------------------
+
+RATA-RATA WAKTU LAYANAN PER DOKTER:
+  - Bar chart horizontal menampilkan rata-rata menit layanan per dokter
+  - Dihitung dari 20 tiket terakhir yang sudah 'done' per dokter
+  - Berguna untuk evaluasi efisiensi pelayanan
+
+TREN ANTRIAN HARIAN:
+  - Bar chart menampilkan jumlah tiket per hari (30 hari terakhir)
+  - Berguna untuk analisis pola kunjungan pasien
+
+------------------------------------------------------------------------
+  11.6 SUB-TAB AUDIT LOG
+------------------------------------------------------------------------
+
+Menampilkan 100 log aktivitas terbaru dari semua pengguna admin:
+  - Waktu kejadian
+  - Aktor (username yang melakukan aksi)
+  - Aksi (admin_login, call_next, status_update, create_schedule, dll)
+  - Detail tambahan
+
+------------------------------------------------------------------------
+  11.7 SUB-TAB MANAJEMEN USER
+------------------------------------------------------------------------
+
+MEMBUAT USER ADMIN BARU:
+  1. Isi form:
+     - Username : Unik, tidak boleh sama dengan yang sudah ada
+     - Password : Minimal disarankan 8 karakter
+     - Role     : Pilih salah satu:
+                  * administrator (akses penuh)
+                  * petugas       (panggil antrian)
+                  * console       (loket pendaftaran)
+                  * display       (layar tunggu)
+  2. Klik [Buat User]
+
+DAFTAR USER:
+  - Menampilkan semua user admin dengan username, role, dan status aktif
+
+------------------------------------------------------------------------
+  11.8 TOOLS SISTEM
+------------------------------------------------------------------------
+
+SEED DATA DEMO:
+  - Klik [Seed Data Demo] untuk mengisi data awal
+  - Aman dijalankan berulang (tidak duplikasi)
+
+RESET ANTRIAN:
+  - Klik [Reset Semua Antrian]
+  - PERINGATAN: Menghapus SEMUA tiket antrian secara permanen
+  - Muncul konfirmasi sebelum dieksekusi
+  - Gunakan hanya di awal hari atau untuk testing
+
+================================================================================
+  BAB 12 - PANDUAN APLIKASI MOBILE - PASIEN
+================================================================================
+
+Aplikasi mobile digunakan oleh PASIEN untuk mengambil nomor antrian secara
+online dari smartphone, tablet, atau kiosk di rumah sakit.
+
+------------------------------------------------------------------------
+  12.1 LOGIN PASIEN
+------------------------------------------------------------------------
+
+CARA LOGIN:
+  1. Buka aplikasi SmartQueue RS
+  2. Masukkan identifier (salah satu):
+     - NIK (16 digit)
+     - No. Rekam Medis (contoh: RM-0001)
+     - No. HP (contoh: 0811111111)
+  3. Masukkan password
+  4. Klik [Masuk]
+
+AKUN DEMO (setelah seed):
+  - Identifier: RM-0001  Password: 123456  (Siti Aisyah)
+  - Identifier: RM-0002  Password: 123456  (Budi Santoso)
+  - Identifier: RM-0003  Password: 123456  (Rina Marlina)
+
+CATATAN:
+  - Pasien yang didaftarkan on-site oleh staf loket mendapat password
+    sementara: 'onsite-' + 4 digit terakhir nomor HP
+    Contoh HP 0812345678 -> password: onsite-5678
+  - Token login berlaku 24 jam
+  - Token disimpan di perangkat, tidak perlu login ulang setiap buka app
+
+------------------------------------------------------------------------
+  12.2 DASHBOARD UTAMA
+------------------------------------------------------------------------
+
+Setelah login, pasien melihat halaman Dashboard yang berisi:
+
+  KARTU SAPAAN (atas):
+  - Foto avatar dengan inisial nama
+  - Sapaan sesuai waktu (Selamat Pagi/Siang/Sore)
+  - Nama depan pasien
+  - No. Rekam Medis
+  - Tombol [Riwayat] untuk melihat riwayat antrian
+
+  KARTU ANTRIAN (tengah):
+  Jika TIDAK ada antrian aktif:
+  - Kartu biru gradien dengan tombol [Ambil Antrian]
+  - Klik tombol untuk mulai proses ambil antrian
+
+  Jika ADA antrian aktif:
+  - Nomor tiket besar (contoh: A-007)
+  - Badge status berwarna (Menunggu/Dipanggil/Sedang Dilayani)
+  - Progress bar menunjukkan posisi dalam antrian
+  - Chip info: jumlah orang di depan dan estimasi waktu tunggu
+  - QR Code untuk check-in mandiri di loket
+  - Banner animasi saat dipanggil (berkedip)
+  - Tombol [Batalkan Antrian] (hanya saat status 'waiting')
+
+  TAB LAYANAN (bawah):
+  - Tab [Poli]: Grid kartu poli yang tersedia
+  - Tab [Dokter]: Daftar dokter dengan foto dan spesialisasi
+
+------------------------------------------------------------------------
+  12.3 MENGAMBIL NOMOR ANTRIAN
+------------------------------------------------------------------------
+
+LANGKAH LENGKAP:
+
+  1. Dari Dashboard, klik [Ambil Antrian] atau klik kartu poli
+     Halaman 'Ambil Antrian' terbuka
+
+  2. STEP 1 - PILIH POLI:
+     - Klik dropdown 'Pilih poli tujuan'
+     - Pilih poli yang diinginkan (contoh: Poli Umum)
+     - Indikator step di atas berubah ke step 2
+
+  3. STEP 2 - PILIH DOKTER:
+     - Dropdown dokter otomatis difilter sesuai poli
+     - Pilih dokter yang diinginkan
+     - Terlihat rata-rata waktu layanan dokter tersebut
+
+  4. STEP 3 - PILIH JADWAL:
+     - Daftar jadwal tersedia muncul
+     - Setiap jadwal menampilkan: tanggal, jam, sisa kuota
+     - Warna sisa kuota:
+       * Hijau: sisa > 5 (masih banyak)
+       * Oranye: sisa <= 5 (hampir penuh)
+     - Jadwal dengan sisa 0 tidak bisa dipilih
+     - Klik jadwal yang diinginkan (border biru = terpilih)
+
+  5. RINGKASAN PENDAFTARAN:
+     - Setelah semua dipilih, muncul kotak ringkasan:
+       * Nama dokter
+       * Tanggal dan jam jadwal
+       * Sisa kuota
+
+  6. CEK KONFLIK JADWAL:
+     - Sistem otomatis mengecek apakah ada antrian aktif
+       yang waktunya berbenturan dengan jadwal yang dipilih
+     - Jika ada konflik, muncul sheet konfirmasi:
+       * Menampilkan detail antrian yang berbenturan
+       * Pilih [Batal] untuk membatalkan
+       * Pilih [Tetap Daftar] untuk lanjut meski ada konflik
+
+  7. KLIK [Ambil Antrian]:
+     - Tombol aktif (biru gradien) jika jadwal sudah dipilih
+     - Tombol abu-abu jika belum memilih jadwal
+
+  8. TIKET BERHASIL:
+     - Sheet sukses muncul dari bawah
+     - Menampilkan: Nomor tiket, Posisi antrian, Estimasi waktu
+     - Klik [Lihat Dashboard] untuk kembali ke halaman utama
+
+ATURAN BISNIS:
+  - Satu pasien hanya bisa memiliki 1 antrian aktif per dokter
+  - Jika sudah ada antrian aktif untuk dokter yang sama,
+    sistem menolak dengan pesan error
+
+------------------------------------------------------------------------
+  12.4 MEMANTAU STATUS ANTRIAN
+------------------------------------------------------------------------
+
+Dashboard diperbarui otomatis melalui dua mekanisme:
+  1. WebSocket: Update instan saat ada perubahan status
+  2. Polling: Refresh otomatis setiap 15 detik sebagai fallback
+
+STATUS ANTRIAN DAN ARTINYA:
+  +------------------+--------+------------------------------------------+
+  | Status           | Warna  | Arti                                     |
+  +------------------+--------+------------------------------------------+
+  | Menunggu         | Biru   | Antrian aktif, belum dipanggil           |
+  | Dipanggil!       | Oranye | Nomor dipanggil, segera ke loket         |
+  | Sedang Dilayani  | Hijau  | Sedang dalam proses pelayanan            |
+  | Selesai          | Abu    | Pelayanan selesai                        |
+  | Dibatalkan       | Merah  | Antrian dibatalkan                       |
+  | Tidak Hadir      | Ungu   | Pasien tidak hadir saat dipanggil        |
+  +------------------+--------+------------------------------------------+
+
+NOTIFIKASI DI DASHBOARD:
+  - 'Menunggu giliran'       : Masih banyak antrian di depan
+  - 'Antrian hampir dipanggil': Tinggal 1-2 orang di depan
+  - 'Segera menuju loket!'   : Nomor baru saja dipanggil
+  - 'Anda sedang dilayani!'  : Sedang dalam pelayanan
+
+------------------------------------------------------------------------
+  12.5 MEMBATALKAN ANTRIAN
+------------------------------------------------------------------------
+
+  1. Di Dashboard, scroll ke bawah kartu antrian
+  2. Klik tombol [Batalkan Antrian] (hanya muncul saat status 'waiting')
+  3. Dialog konfirmasi muncul
+  4. Klik [Batalkan] untuk konfirmasi
+  5. Antrian dibatalkan dan tidak bisa dikembalikan
+
+CATATAN: Antrian yang sudah 'called' atau 'serving' tidak bisa dibatalkan
+         oleh pasien. Hubungi petugas untuk pembatalan.
+
+------------------------------------------------------------------------
+  12.6 RIWAYAT ANTRIAN DAN KUNJUNGAN
+------------------------------------------------------------------------
+
+CARA MENGAKSES:
+  - Klik tombol [Riwayat] di pojok kanan atas Dashboard
+  - Atau navigasi ke halaman Riwayat
+
+TAB ANTRIAN:
+  - Semua tiket antrian yang pernah dibuat oleh pasien ini
+  - Diurutkan dari yang terbaru
+  - Setiap item menampilkan:
+    * Nomor tiket dan badge status
+    * Nama poli dan dokter
+    * Tanggal dibuat
+    * Durasi layanan aktual (jika sudah selesai)
+
+TAB KUNJUNGAN:
+  - Riwayat kunjungan medis yang dicatat oleh dokter/admin
+  - Setiap item menampilkan:
+    * Nama dokter
+    * Nama poli
+    * Ringkasan diagnosis (jika diisi)
+    * Tanggal kunjungan
+
+------------------------------------------------------------------------
+  12.7 HALAMAN PROFIL
+------------------------------------------------------------------------
+
+CARA MENGAKSES:
+  - Klik ikon profil di pojok kanan atas Dashboard
+
+INFORMASI YANG DITAMPILKAN:
+  - Kartu hero gradien biru dengan:
+    * Inisial nama (avatar)
+    * Nama lengkap
+    * No. HP
+    * No. Rekam Medis
+  - Informasi Pasien:
+    * NIK
+    * No. Rekam Medis
+    * No. Telepon
+
+ANGGOTA KELUARGA:
+  - Daftar anggota keluarga yang terdaftar
+  - Klik [Tambah] untuk menambah anggota keluarga baru
+  - Form tambah anggota: Nama lengkap + Hubungan (Anak, Istri, dll)
+  - Anggota keluarga bisa digunakan saat ambil antrian untuk orang lain
+
+KELUAR (Logout):
+  - Klik tombol [Keluar] di bagian bawah halaman profil
+  - Token dihapus dari perangkat
+  - Diarahkan kembali ke halaman login
+
+================================================================================
+  BAB 13 - ALUR STATUS ANTRIAN
+================================================================================
+
+DIAGRAM TRANSISI STATUS:
+
+                    +----------+
+                    | waiting  |<---------+
+                    +----------+          |
+                    /          \          |
+                   v            v         |
+            +--------+    +-----------+  |
+            | called |    | cancelled |  |
+            +--------+    +-----------+  |
+           /    |    \                   |
+          v     v     v                  |
+     +-------+ +--------+ +---------+   |
+     |serving| |no_show | | waiting |---+
+     +-------+ +--------+ +---------+
+         |
+         v
+      +------+
+      | done |
+      +------+
+
+DETAIL TRANSISI YANG DIIZINKAN:
+  waiting  -> called     : Petugas memanggil nomor
+  waiting  -> cancelled  : Pasien membatalkan antrian
+  called   -> serving    : Petugas mengkonfirmasi pasien hadir
+  called   -> no_show    : Pasien tidak hadir setelah dipanggil
+  called   -> waiting    : Kembalikan ke antrian (pasien terlambat datang)
+  serving  -> done       : Pelayanan selesai
+
+TIMESTAMP YANG DICATAT OTOMATIS:
+  - created_at  : Saat tiket dibuat
+  - called_at   : Saat status berubah ke 'called'
+  - serving_at  : Saat status berubah ke 'serving'
+  - done_at     : Saat status berubah ke 'done'
+  - actual_serve_minutes: Dihitung otomatis (done_at - serving_at)
+
+FORMAT NOMOR TIKET:
+  - Format: A-[posisi 3 digit]
+  - Contoh: A-001, A-002, ..., A-099, A-100
+  - Posisi dihitung per jadwal (schedule_id)
+  - Setiap jadwal memiliki urutan nomor sendiri
+
+ESTIMASI WAKTU TUNGGU:
+  - Dihitung: posisi_antrian x rata_rata_waktu_layanan_dokter
+  - Rata-rata dihitung dari 20 tiket terakhir yang sudah 'done'
+  - Default jika belum ada data: 8 menit per pasien
+  - Minimum estimasi: 5 menit
+
+================================================================================
+  BAB 14 - WEBSOCKET REAL-TIME
+================================================================================
+
+SmartQueue RS menggunakan WebSocket untuk update real-time ke semua klien.
+
+ENDPOINT WEBSOCKET:
+  ws://localhost:8100/ws/queue
+
+CARA KERJA:
+  - Klien (mobile app, admin web) terhubung ke endpoint WebSocket
+  - Server broadcast event ke SEMUA klien yang terhubung
+  - Klien memfilter event yang relevan dan memperbarui UI
+  - Ping dikirim setiap 20 detik untuk menjaga koneksi
+  - Auto-reconnect setiap 4-5 detik jika koneksi terputus
+
+DAFTAR EVENT YANG DIKIRIM SERVER:
+
+  ticket_created:
+    Dikirim saat: Pasien berhasil ambil antrian (online atau on-site)
+    Data: { event, ticket_no, schedule_id, registration_channel }
+    Efek: Dashboard pasien refresh, monitor admin refresh
+
+  ticket_called:
+    Dikirim saat: Petugas memanggil nomor berikutnya
+    Data: { event, ticket_no, patient_name, service, poli_name, doctor_name }
+    Efek: Display layar tunggu berubah, pengumuman suara berbunyi,
+          dashboard pasien yang dipanggil menampilkan banner
+
+  ticket_status_changed:
+    Dikirim saat: Status tiket diubah (serving, done, no_show, dll)
+    Data: { event, ticket_no, status }
+    Efek: Dashboard pasien diperbarui, monitor admin diperbarui
+
+  ticket_cancelled:
+    Dikirim saat: Pasien membatalkan antrian
+    Data: { event, ticket_no }
+    Efek: Monitor admin diperbarui
+
+INDIKATOR KONEKSI DI ADMIN WEB:
+  - Titik hijau berkedip di pojok kanan atas = WebSocket terhubung
+  - Jika titik tidak muncul = WebSocket belum terhubung atau terputus
+
+================================================================================
+  BAB 15 - KONFIGURASI PRODUKSI
+================================================================================
+
+------------------------------------------------------------------------
+  15.1 BACKEND PRODUKSI
+------------------------------------------------------------------------
+
+1. GANTI SECRET KEY:
+   python -c "import secrets; print(secrets.token_hex(32))"
+   Salin hasilnya ke SECRET_KEY di file .env
+
+2. GUNAKAN POSTGRESQL (disarankan untuk produksi):
+   DATABASE_URL=postgresql://user:password@localhost:5432/smartqueue
+   Install driver: pip install psycopg2-binary
+
+3. SET ENVIRONMENT KE PRODUCTION:
+   ENVIRONMENT=production
+   Ini mengaktifkan pembatasan CORS ke ALLOWED_ORIGINS saja
+
+4. SET ALLOWED_ORIGINS:
+   ALLOWED_ORIGINS=https://admin.rumahsakit.com,https://app.rumahsakit.com
+
+5. JALANKAN TANPA --reload DI PRODUKSI:
+   uvicorn app.main:app --workers 4
+   Atau gunakan Gunicorn:
+   gunicorn app.main:app -w 4 -k uvicorn.workers.UvicornWorker
+
+------------------------------------------------------------------------
+  15.2 ADMIN WEB PRODUKSI
+------------------------------------------------------------------------
+
+1. Buat file admin_web/.env.production:
+   VITE_API_URL=https://api.rumahsakit.com
+
+2. Build:
+   cd admin_web
+   npm run build
+
+3. Deploy folder dist/ ke web server
+
+4. Konfigurasi Nginx (contoh):
+   server {
+     listen 80;
+     server_name admin.rumahsakit.com;
+     root /var/www/smartqueue-admin/dist;
+     index index.html;
+     location / { try_files  / /index.html; }
+   }
+
+------------------------------------------------------------------------
+  15.3 MOBILE APP PRODUKSI
+------------------------------------------------------------------------
+
+ANDROID - SIGNING RELEASE:
+  1. Buat keystore:
+     keytool -genkey -v -keystore upload-keystore.jks ^
+       -keyalg RSA -keysize 2048 -validity 10000 -alias upload
+
+  2. Buat file android/key.properties:
+     storeFile=../upload-keystore.jks
+     storePassword=password-anda
+     keyAlias=upload
+     keyPassword=password-anda
+
+  3. Build release APK:
+     flutter build apk --release ^
+       --dart-define=API_ORIGIN=https://api.rumahsakit.com
+
+iOS - RELEASE:
+  1. Buka Xcode: ios/Runner.xcworkspace
+  2. Set Bundle ID dan Team di Signing & Capabilities
+  3. Product -> Archive -> Distribute App
+
+WEB - DEPLOY:
+  flutter build web --release --base-href / ^
+    --dart-define=API_ORIGIN=https://api.rumahsakit.com
+  Deploy folder build/web/ ke hosting statis
+
+WINDOWS KIOSK - DISTRIBUSI:
+  flutter build windows --release ^
+    --dart-define=API_ORIGIN=http://192.168.1.100:8100
+  Distribusikan folder build/windows/x64/runner/Release/
+
+================================================================================
+  BAB 16 - TROUBLESHOOTING
+================================================================================
+
+------------------------------------------------------------------------
+  MASALAH BACKEND
+------------------------------------------------------------------------
+
+MASALAH: Server tidak bisa start
+SOLUSI :
+  - Pastikan virtual environment aktif
+  - Pastikan semua dependensi terinstall: pip install -r requirements.txt
+  - Cek apakah port 8100 sudah dipakai: netstat -ano | findstr :8100
+  - Ganti port: uvicorn app.main:app --port 8200
+
+MASALAH: Error 'ModuleNotFoundError'
+SOLUSI :
+  - Jalankan dari folder backend/: cd smartqueue-rs/backend
+  - Pastikan venv aktif sebelum menjalankan uvicorn
+
+MASALAH: Database error saat startup
+SOLUSI :
+  - Hapus file smartqueue.db dan restart server (data akan hilang)
+  - Jalankan seed ulang setelah restart
+
+MASALAH: CORS error di browser
+SOLUSI :
+  - Pastikan ENVIRONMENT=development di .env untuk dev
+  - Untuk produksi, tambahkan origin ke ALLOWED_ORIGINS
+
+------------------------------------------------------------------------
+  MASALAH ADMIN WEB
+------------------------------------------------------------------------
+
+MASALAH: Halaman kosong / tidak bisa load
+SOLUSI :
+  - Pastikan backend berjalan di port 8100
+  - Cek VITE_API_URL di file .env
+  - Buka DevTools browser (F12) -> Console untuk melihat error
+
+MASALAH: Login gagal 'Username atau password salah'
+SOLUSI :
+  - Pastikan seed data sudah dijalankan
+  - Gunakan kredensial yang benar (lihat BAB 7)
+  - Cek apakah Caps Lock aktif
+
+MASALAH: Indikator WebSocket tidak muncul (titik hijau)
+SOLUSI :
+  - Pastikan backend berjalan
+  - Cek URL WebSocket di browser DevTools -> Network -> WS
+  - Pastikan tidak ada firewall yang memblokir WebSocket
+
+MASALAH: Data tidak diperbarui real-time
+SOLUSI :
+  - Cek koneksi WebSocket (titik hijau di topbar)
+  - Data juga diperbarui setiap 15 detik via polling
+  - Klik refresh manual jika diperlukan
+
+------------------------------------------------------------------------
+  MASALAH APLIKASI MOBILE
+------------------------------------------------------------------------
+
+MASALAH: Tidak bisa terhubung ke server
+SOLUSI :
+  - Emulator Android: gunakan 10.0.2.2 sebagai host (otomatis)
+  - Perangkat fisik: gunakan IP jaringan lokal server
+    flutter run --dart-define=API_ORIGIN=http://192.168.1.100:8100
+  - Pastikan firewall tidak memblokir port 8100
+
+MASALAH: Login gagal di iOS
+SOLUSI :
+  - Pastikan server menggunakan HTTPS di produksi
+  - Untuk dev dengan HTTP, pastikan domain ada di NSExceptionDomains
+    di ios/Runner/Info.plist
+
+MASALAH: flutter pub get gagal
+SOLUSI :
+  - Pastikan Flutter SDK terinstall dan di PATH
+  - Jalankan: flutter doctor
+  - Update Flutter: flutter upgrade
+
+MASALAH: Build Android gagal
+SOLUSI :
+  - Pastikan Android SDK terinstall
+  - Jalankan: flutter doctor --android-licenses
+  - Cek versi Gradle: harus kompatibel dengan Flutter SDK
+
+------------------------------------------------------------------------
+  RESET TOTAL SISTEM
+------------------------------------------------------------------------
+
+Jika ingin memulai dari awal (hapus semua data):
+  1. Hentikan backend server
+  2. Hapus file database: del smartqueue-rs\backend\smartqueue.db
+  3. Jalankan backend kembali (database baru dibuat otomatis)
+  4. Jalankan seed: POST http://localhost:8100/api/v1/admin/seed
+
+================================================================================
+  RINGKASAN QUICK START
+================================================================================
+
+URUTAN MENJALANKAN SISTEM (PERTAMA KALI):
+
+  1. cd smartqueue-rs/backend
+     venv\Scripts\activate
+     pip install -r requirements.txt
+     copy .env.example .env
+     uvicorn app.main:app --reload
+
+  2. Buka browser: http://localhost:8100/api/v1/admin/seed (POST)
+     Atau: curl -X POST http://localhost:8100/api/v1/admin/seed
+
+  3. cd smartqueue-rs/admin_web
+     npm install
+     npm run dev
+     Buka: http://localhost:5176
+     Login: administrator / admin123
+
+  4. cd smartqueue-rs/mobile_app
+     flutter pub get
+     flutter run -d chrome   (web browser)
+     flutter run -d android  (Android)
+     flutter run -d windows  (Windows kiosk)
+     Login pasien: RM-0001 / 123456
+
+URUTAN OPERASIONAL HARIAN:
+
+  PAGI (sebelum buka):
+  - Pastikan backend berjalan
+  - Login admin web sebagai administrator
+  - Cek jadwal dokter hari ini di Panel Administrator -> Jadwal
+  - Buka Display di komputer ruang tunggu (login: display/display123)
+
+  SAAT OPERASIONAL:
+  - Staf loket: login sebagai console, daftarkan pasien on-site
+  - Petugas antrian: login sebagai petugas, panggil nomor
+  - Pasien: gunakan aplikasi mobile untuk ambil antrian online
+
+  AKHIR HARI:
+  - Download laporan Excel dari Panel Administrator -> Laporan
+  - Cek analytics di Panel Administrator -> Analytics
+  - Opsional: reset antrian untuk hari berikutnya
+
+================================================================================
+  KONTAK & DUKUNGAN
+================================================================================
+
+Dokumentasi API lengkap: http://localhost:8100/docs
+Source code: smartqueue-rs/
+Changelog: smartqueue-rs/CHANGELOG.md
+Build guide: smartqueue-rs/mobile_app/PLATFORM_BUILD.md
+
+================================================================================
+  END OF MANUAL
+================================================================================

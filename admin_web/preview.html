@@ -1,0 +1,677 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SmartQueue RS - Dashboard</title>
+  <style>
+    :root {
+      --bg-main: #1cc7d0;
+      --bg-main-2: #18b4cf;
+      --text-dark: #154064;
+      --panel: rgba(255, 255, 255, 0.88);
+      --line: rgba(19, 72, 113, 0.2);
+      --blue: #3f8dff;
+      --orange: #f7b267;
+      --green: #34d399;
+      --purple: #b06cff;
+      --danger: #b42318;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Tahoma, sans-serif;
+      color: #fff;
+      background: radial-gradient(circle at 30% -20%, #52d4ea, transparent 45%), linear-gradient(135deg, var(--bg-main), var(--bg-main-2));
+      min-height: 100vh;
+    }
+
+    .container {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    .hidden { display: none !important; }
+
+    .login-wrap {
+      min-height: calc(100vh - 48px);
+      display: grid;
+      place-items: center;
+    }
+
+    .card {
+      background: var(--panel);
+      color: var(--text-dark);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      box-shadow: 0 14px 40px rgba(7, 54, 89, 0.24);
+      padding: 18px;
+    }
+
+    .login-card {
+      width: min(520px, 96vw);
+      padding: 24px;
+    }
+
+    .login-card h1 {
+      margin: 0;
+      font-size: 2rem;
+      color: #0f4f7e;
+    }
+
+    .login-card p {
+      color: #3c6080;
+      margin-bottom: 18px;
+    }
+
+    .form-grid {
+      display: grid;
+      gap: 10px;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .form-grid .full { grid-column: 1 / -1; }
+
+    input, select, button {
+      font: inherit;
+    }
+
+    input, select {
+      width: 100%;
+      border: 1px solid #c9dae9;
+      border-radius: 10px;
+      padding: 11px 12px;
+      background: #fff;
+      color: #183e60;
+    }
+
+    .btn {
+      border: none;
+      border-radius: 10px;
+      padding: 11px 13px;
+      font-weight: 700;
+      cursor: pointer;
+      color: #fff;
+      background: linear-gradient(135deg, #1482e2, #0f67c9);
+    }
+
+    .btn.secondary {
+      background: linear-gradient(135deg, #4479a6, #2d5f8d);
+    }
+
+    .btn.orange { background: linear-gradient(135deg, #f3a54e, #e08d30); }
+    .btn.green { background: linear-gradient(135deg, #32c88a, #1fa56f); }
+    .btn.purple { background: linear-gradient(135deg, #ae63ff, #8a46df); }
+    .btn.danger { background: linear-gradient(135deg, #d3483e, #b42318); }
+
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .topbar .role {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 10px;
+      border: 1px solid rgba(255, 255, 255, 0.4);
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.18);
+      font-size: 0.92rem;
+    }
+
+    .hero {
+      text-align: center;
+      margin: 6px 0 18px;
+    }
+
+    .hero h2 {
+      margin: 0;
+      font-size: clamp(2rem, 4vw, 3rem);
+      color: #fff;
+      text-shadow: 0 6px 20px rgba(8, 54, 92, 0.3);
+    }
+
+    .hero p {
+      margin: 8px 0 0;
+      font-size: clamp(1rem, 2vw, 1.15rem);
+      letter-spacing: 0.02em;
+      opacity: 0.96;
+    }
+
+    .nav-grid {
+      display: grid;
+      gap: 14px;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      margin-bottom: 16px;
+    }
+
+    .nav-btn {
+      border: 2px solid rgba(255, 255, 255, 0.6);
+      border-radius: 14px;
+      color: #fff;
+      font-weight: 800;
+      font-size: 1.02rem;
+      letter-spacing: 0.02em;
+      padding: 20px 16px;
+      cursor: pointer;
+      box-shadow: 0 10px 24px rgba(10, 58, 94, 0.28);
+    }
+
+    .nav-btn.blue { background: linear-gradient(135deg, #3f8dff, #2f6fd7); }
+    .nav-btn.orange { background: linear-gradient(135deg, #f7b267, #eb9a49); }
+    .nav-btn.green { background: linear-gradient(135deg, #33cf95, #20ad79); }
+    .nav-btn.purple { background: linear-gradient(135deg, #b06cff, #964de3); }
+
+    .panel-grid {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 16px;
+    }
+
+    .panel {
+      color: #163f63;
+    }
+
+    .panel h3 {
+      margin: 0 0 10px;
+      color: #0f4f7e;
+    }
+
+    .two-col {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .queue-stats {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .queue-stat {
+      border: 1px solid #c8deed;
+      border-radius: 12px;
+      background: #fff;
+      padding: 10px;
+      text-align: center;
+    }
+
+    .queue-stat strong {
+      display: block;
+      font-size: 1.5rem;
+      color: #12558a;
+    }
+
+    .queue-list {
+      display: grid;
+      gap: 8px;
+      max-height: 280px;
+      overflow: auto;
+      padding-right: 4px;
+    }
+
+    .queue-item {
+      border: 1px solid #cbe0ee;
+      border-radius: 10px;
+      background: #fff;
+      padding: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .queue-item .meta {
+      color: #52708b;
+      font-size: 0.9rem;
+    }
+
+    .display-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .display-box {
+      border-radius: 14px;
+      padding: 12px;
+      text-align: center;
+      color: #fff;
+      box-shadow: 0 8px 18px rgba(7, 54, 89, 0.24);
+    }
+
+    .display-box h4 { margin: 0 0 8px; }
+    .display-box .num { font-size: 2rem; font-weight: 900; letter-spacing: 0.02em; }
+
+    .display-box.blue { background: linear-gradient(135deg, #3f8dff, #2f6fd7); }
+    .display-box.orange { background: linear-gradient(135deg, #f7b267, #eb9a49); }
+    .display-box.green { background: linear-gradient(135deg, #33cf95, #20ad79); }
+
+    .history {
+      border: 1px solid #cbe0ee;
+      border-radius: 12px;
+      background: #fff;
+      padding: 10px;
+      max-height: 180px;
+      overflow: auto;
+      color: #36536e;
+      font-size: 0.92rem;
+    }
+
+    .admin-grid {
+      display: grid;
+      gap: 10px;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .chip {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: #eaf4ff;
+      color: #18538a;
+      font-size: 0.82rem;
+      font-weight: 700;
+    }
+
+    .emulator {
+      border: 10px solid #101922;
+      border-radius: 26px;
+      background: #f8fbff;
+      width: min(360px, 100%);
+      margin: 0 auto;
+      box-shadow: 0 14px 30px rgba(7, 54, 89, 0.26);
+      overflow: hidden;
+    }
+
+    .phone-head {
+      background: linear-gradient(135deg, #1482e2, #0f67c9);
+      color: #fff;
+      padding: 12px;
+      text-align: center;
+      font-weight: 700;
+    }
+
+    .phone-body {
+      padding: 12px;
+      color: #173f62;
+    }
+
+    .phone-body .box {
+      border: 1px solid #d1e4f2;
+      border-radius: 12px;
+      padding: 10px;
+      background: #fff;
+      margin-bottom: 10px;
+    }
+
+    .phone-body .label {
+      color: #5a7690;
+      font-size: 0.86rem;
+      margin-bottom: 4px;
+    }
+
+    .mt8 { margin-top: 8px; }
+    .mt12 { margin-top: 12px; }
+
+    @media (max-width: 1100px) {
+      .nav-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .panel-grid { grid-template-columns: 1fr; }
+      .display-grid { grid-template-columns: 1fr; }
+      .queue-stats { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 700px) {
+      .container { padding: 14px; }
+      .form-grid, .two-col, .admin-grid { grid-template-columns: 1fr; }
+      .nav-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <section id="loginScreen" class="login-wrap">
+      <div class="login-card card">
+        <h1>Login SmartQueue RS</h1>
+        <p>Silakan login terlebih dahulu sebelum masuk ke dashboard.</p>
+        <form id="loginForm" class="form-grid">
+          <div class="full">
+            <label>Role</label>
+            <select id="roleInput" required>
+              <option value="console">Console Box</option>
+              <option value="petugas">Petugas Panggil</option>
+              <option value="display">Display</option>
+              <option value="administrator">Administrator</option>
+            </select>
+          </div>
+          <input id="userInput" placeholder="Username" required />
+          <input id="passInput" type="password" placeholder="Password" required />
+          <button class="btn full" type="submit">Masuk Dashboard</button>
+        </form>
+        <p class="mt12" style="margin-bottom:0; color:#4b6c86;">Akun demo: <span class="chip">administrator / admin123</span></p>
+      </div>
+    </section>
+
+    <section id="appScreen" class="hidden">
+      <div class="topbar">
+        <div class="role">Login sebagai: <strong id="roleLabel">-</strong></div>
+        <button class="btn secondary" id="logoutBtn">Logout</button>
+      </div>
+
+      <div class="hero">
+        <h2>Dashboard</h2>
+        <p>FASKES TINGKAT LANJUT <em>"RSUD SERPONG UTARA"</em></p>
+      </div>
+
+      <div class="nav-grid">
+        <button class="nav-btn blue" data-panel="consolePanel">CONSOLE BOX</button>
+        <button class="nav-btn orange" data-panel="petugasPanel">PETUGAS PANGGIL</button>
+        <button class="nav-btn green" data-panel="displayPanel">DISPLAY</button>
+        <button class="nav-btn purple" data-panel="adminPanel">ADMINISTRATOR</button>
+      </div>
+
+      <div class="panel-grid">
+        <div>
+          <section id="consolePanel" class="panel card">
+            <h3>Console Box - Pendaftaran</h3>
+            <p class="sub">Pendaftaran antrian langsung ke ADMIN, POLI, atau FARMASI.</p>
+            <form id="consoleForm" class="form-grid mt8">
+              <input class="full" id="patientName" placeholder="Nama pasien" required />
+              <input id="patientPhone" placeholder="No HP" required />
+              <select id="serviceType" required>
+                <option value="admin">Admin</option>
+                <option value="poli">Poli</option>
+                <option value="farmasi">Farmasi</option>
+              </select>
+              <button class="btn full" type="submit">Daftarkan Antrian</button>
+            </form>
+          </section>
+
+          <section id="petugasPanel" class="panel card hidden mt12">
+            <h3>Petugas Panggil</h3>
+            <div class="queue-stats">
+              <div class="queue-stat"><span>Admin</span><strong id="waitAdmin">0</strong><small>menunggu</small></div>
+              <div class="queue-stat"><span>Poli</span><strong id="waitPoli">0</strong><small>menunggu</small></div>
+              <div class="queue-stat"><span>Farmasi</span><strong id="waitFarmasi">0</strong><small>menunggu</small></div>
+            </div>
+            <div class="two-col">
+              <button class="btn" data-call="admin" type="button">Panggil Admin</button>
+              <button class="btn orange" data-call="poli" type="button">Panggil Poli</button>
+              <button class="btn green" data-call="farmasi" type="button">Panggil Farmasi</button>
+            </div>
+            <div class="queue-list mt12" id="queueList"></div>
+          </section>
+
+          <section id="displayPanel" class="panel card hidden mt12">
+            <h3>Display Nomor Panggilan</h3>
+            <div class="display-grid">
+              <div class="display-box blue"><h4>ADMIN</h4><div class="num" id="dispAdmin">-</div></div>
+              <div class="display-box orange"><h4>POLI</h4><div class="num" id="dispPoli">-</div></div>
+              <div class="display-box green"><h4>FARMASI</h4><div class="num" id="dispFarmasi">-</div></div>
+            </div>
+            <div class="two-col">
+              <button class="btn" data-call="admin" type="button">Panggil Admin</button>
+              <button class="btn orange" data-call="poli" type="button">Panggil Poli</button>
+              <button class="btn green" data-call="farmasi" type="button">Panggil Farmasi</button>
+            </div>
+            <div class="history mt12" id="callHistory"></div>
+          </section>
+
+          <section id="adminPanel" class="panel card hidden mt12">
+            <h3>Administrator - Kelola Semua</h3>
+            <div class="admin-grid">
+              <button class="btn" id="seedBtn" type="button">Isi Data Demo</button>
+              <button class="btn danger" id="resetBtn" type="button">Reset Semua Antrian</button>
+            </div>
+            <h4 class="mt12" style="margin-bottom:8px;color:#1a4d77;">Manajemen User Panel</h4>
+            <div class="form-grid">
+              <input id="newUser" placeholder="Username baru" />
+              <select id="newRole">
+                <option value="console">Console</option>
+                <option value="petugas">Petugas</option>
+                <option value="display">Display</option>
+                <option value="administrator">Administrator</option>
+              </select>
+              <button class="btn full" id="addUserBtn" type="button">Tambah User Lokal</button>
+            </div>
+            <div class="history mt12" id="userLog"></div>
+          </section>
+        </div>
+
+        <aside class="card panel">
+          <h3>Emulator HP - Pasien (Play Store)</h3>
+          <p style="color:#4d6f89; margin-top:0;">Simulasi tampilan mobile saat pasien daftar online dari aplikasi.</p>
+          <div class="emulator">
+            <div class="phone-head">SmartQueue RS Mobile</div>
+            <div class="phone-body">
+              <div class="box">
+                <div class="label">Nama Pasien</div>
+                <strong id="phoneName">Pasien Mobile</strong>
+              </div>
+              <div class="box">
+                <div class="label">Pilih Layanan</div>
+                <select id="phoneService">
+                  <option value="admin">Admin</option>
+                  <option value="poli" selected>Poli</option>
+                  <option value="farmasi">Farmasi</option>
+                </select>
+              </div>
+              <div class="box">
+                <div class="label">Nomor Antrian Aktif</div>
+                <strong id="phoneTicket">Belum ada</strong>
+              </div>
+              <button class="btn full" id="mobileRegisterBtn" type="button">Daftar Online Sekarang</button>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    const demoUsers = {
+      console: { username: 'console', password: 'console123' },
+      petugas: { username: 'petugas', password: 'panggil123' },
+      display: { username: 'display', password: 'display123' },
+      administrator: { username: 'administrator', password: 'admin123' },
+    };
+
+    const queues = {
+      admin: [],
+      poli: [],
+      farmasi: [],
+    };
+
+    const counters = {
+      admin: 0,
+      poli: 0,
+      farmasi: 0,
+    };
+
+    const lastCalled = {
+      admin: '-',
+      poli: '-',
+      farmasi: '-',
+    };
+
+    let userRole = null;
+
+    const loginScreen = document.getElementById('loginScreen');
+    const appScreen = document.getElementById('appScreen');
+    const roleLabel = document.getElementById('roleLabel');
+    const callHistory = document.getElementById('callHistory');
+    const queueList = document.getElementById('queueList');
+    const userLog = document.getElementById('userLog');
+
+    function nextTicket(service) {
+      counters[service] += 1;
+      return `A-${String(counters[service]).padStart(3, '0')}`;
+    }
+
+    function renderWaitStats() {
+      document.getElementById('waitAdmin').textContent = queues.admin.length;
+      document.getElementById('waitPoli').textContent = queues.poli.length;
+      document.getElementById('waitFarmasi').textContent = queues.farmasi.length;
+    }
+
+    function renderQueueList() {
+      const all = [...queues.admin.map(x => ({ ...x, service: 'Admin' })), ...queues.poli.map(x => ({ ...x, service: 'Poli' })), ...queues.farmasi.map(x => ({ ...x, service: 'Farmasi' }))];
+      all.sort((a, b) => a.order - b.order);
+      queueList.innerHTML = all.length
+        ? all.map(item => `<div class="queue-item"><div><strong>${item.ticket}</strong> - ${item.name}<div class="meta">${item.source} • ${item.service}</div></div><span class="chip">Menunggu</span></div>`).join('')
+        : '<div class="meta">Belum ada antrian.</div>';
+    }
+
+    function renderDisplay() {
+      document.getElementById('dispAdmin').textContent = lastCalled.admin;
+      document.getElementById('dispPoli').textContent = lastCalled.poli;
+      document.getElementById('dispFarmasi').textContent = lastCalled.farmasi;
+    }
+
+    function addHistory(message) {
+      const time = new Date().toLocaleTimeString('id-ID');
+      callHistory.innerHTML = `<div>[${time}] ${message}</div>` + callHistory.innerHTML;
+    }
+
+    function registerQueue(name, phone, service, source) {
+      const ticket = nextTicket(service);
+      const order = Date.now() + Math.random();
+      queues[service].push({ ticket, name, phone, source, order });
+      renderWaitStats();
+      renderQueueList();
+      addHistory(`Pendaftaran ${source}: ${name} mendapatkan nomor ${ticket} untuk ${service.toUpperCase()}`);
+      return ticket;
+    }
+
+    function callNext(service) {
+      const item = queues[service].shift();
+      if (!item) {
+        alert(`Belum ada antrian ${service.toUpperCase()}`);
+        return;
+      }
+      lastCalled[service] = item.ticket;
+      renderWaitStats();
+      renderQueueList();
+      renderDisplay();
+      addHistory(`Panggil ${service.toUpperCase()}: ${item.ticket} (${item.name})`);
+    }
+
+    function showPanel(panelId) {
+      ['consolePanel', 'petugasPanel', 'displayPanel', 'adminPanel'].forEach(id => {
+        document.getElementById(id).classList.toggle('hidden', id !== panelId);
+      });
+    }
+
+    function checkAccess(panelId) {
+      if (userRole === 'administrator') return true;
+      if (userRole === 'console' && panelId === 'consolePanel') return true;
+      if (userRole === 'petugas' && panelId === 'petugasPanel') return true;
+      if (userRole === 'display' && panelId === 'displayPanel') return true;
+      alert('Akses ditolak. Hanya role terkait atau administrator yang bisa membuka panel ini.');
+      return false;
+    }
+
+    document.getElementById('loginForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const role = document.getElementById('roleInput').value;
+      const user = document.getElementById('userInput').value.trim();
+      const pass = document.getElementById('passInput').value;
+      const account = demoUsers[role];
+      if (!account || account.username !== user || account.password !== pass) {
+        alert('Username/password salah untuk role yang dipilih.');
+        return;
+      }
+      userRole = role;
+      roleLabel.textContent = role.toUpperCase();
+      loginScreen.classList.add('hidden');
+      appScreen.classList.remove('hidden');
+      const defaultPanel = role === 'administrator' ? 'adminPanel' : `${role === 'petugas' ? 'petugasPanel' : role === 'display' ? 'displayPanel' : 'consolePanel'}`;
+      showPanel(defaultPanel);
+    });
+
+    document.getElementById('logoutBtn').addEventListener('click', () => {
+      userRole = null;
+      loginScreen.classList.remove('hidden');
+      appScreen.classList.add('hidden');
+    });
+
+    document.querySelectorAll('.nav-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const panel = btn.getAttribute('data-panel');
+        if (checkAccess(panel)) showPanel(panel);
+      });
+    });
+
+    document.getElementById('consoleForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const name = document.getElementById('patientName').value.trim();
+      const phone = document.getElementById('patientPhone').value.trim();
+      const service = document.getElementById('serviceType').value;
+      if (!name || !phone) {
+        alert('Nama dan no HP wajib diisi.');
+        return;
+      }
+      const ticket = registerQueue(name, phone, service, 'On-the-spot Console');
+      alert(`Pendaftaran berhasil. Nomor antrian: ${ticket}`);
+      e.target.reset();
+    });
+
+    document.querySelectorAll('[data-call]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const service = btn.getAttribute('data-call');
+        callNext(service);
+      });
+    });
+
+    document.getElementById('mobileRegisterBtn').addEventListener('click', () => {
+      const service = document.getElementById('phoneService').value;
+      const ticket = registerQueue('Pasien Mobile', '08xxxxxxxxxx', service, 'Online Mobile');
+      document.getElementById('phoneTicket').textContent = `${ticket} (${service.toUpperCase()})`;
+    });
+
+    document.getElementById('seedBtn').addEventListener('click', () => {
+      registerQueue('Siti Aisyah', '0811111111', 'admin', 'Online');
+      registerQueue('Budi Santoso', '0822222222', 'poli', 'Online');
+      registerQueue('Rina Marlina', '0833333333', 'farmasi', 'Online');
+      alert('Data demo ditambahkan.');
+    });
+
+    document.getElementById('resetBtn').addEventListener('click', () => {
+      queues.admin = [];
+      queues.poli = [];
+      queues.farmasi = [];
+      lastCalled.admin = '-';
+      lastCalled.poli = '-';
+      lastCalled.farmasi = '-';
+      renderWaitStats();
+      renderQueueList();
+      renderDisplay();
+      addHistory('Administrator melakukan reset antrian.');
+    });
+
+    document.getElementById('addUserBtn').addEventListener('click', () => {
+      const username = document.getElementById('newUser').value.trim();
+      const role = document.getElementById('newRole').value;
+      if (!username) return;
+      userLog.innerHTML = `<div>User lokal dibuat: <strong>${username}</strong> (${role})</div>` + userLog.innerHTML;
+      document.getElementById('newUser').value = '';
+    });
+
+    renderWaitStats();
+    renderQueueList();
+    renderDisplay();
+    callHistory.innerHTML = '<div>Belum ada log panggilan.</div>';
+    userLog.innerHTML = '<div>Belum ada perubahan user.</div>';
+  </script>
+</body>
+</html>
