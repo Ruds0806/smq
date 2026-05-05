@@ -24,7 +24,7 @@ router = APIRouter(prefix="/queue", tags=["queue"])
 @router.get("/polis")
 def list_polis(db: Session = Depends(get_db)):
     rows = db.query(Poli).all()
-    return [{"id": x.id, "name": x.name} for x in rows]
+    return [{"id": x.id, "name": x.name, "room": x.room, "floor": x.floor, "description": x.description} for x in rows]
 
 
 @router.get("/doctors")
@@ -40,6 +40,10 @@ def list_doctors(poli_id: int, db: Session = Depends(get_db)):
             "id": d.id,
             "full_name": d.full_name,
             "specialization": d.specialization,
+            "gender": d.gender,
+            "bio": d.bio,
+            "education": d.education,
+            "practice_days": d.practice_days,
             "photo_url": f"/uploads/doctors/{d.photo_filename}" if d.photo_filename else None,
             "avg_serve_minutes": compute_rolling_avg_serve_minutes(db, d.id),
         }
@@ -255,6 +259,20 @@ def queue_dashboard(patient: Patient = Depends(get_current_patient), db: Session
         )
     )
 
+    # Fetch doctor and poli detail for the active ticket
+    doctor = db.query(Doctor).filter(Doctor.id == ticket.doctor_id).first()
+    poli   = db.query(Poli).filter(Poli.id == ticket.poli_id).first()
+
+    # Count total waiting in this schedule
+    total_waiting = (
+        db.query(QueueTicket)
+        .filter(
+            QueueTicket.schedule_id == ticket.schedule_id,
+            QueueTicket.status == "waiting",
+        )
+        .count()
+    )
+
     return {
         "has_ticket": True,
         "ticket_id": ticket.id,
@@ -262,9 +280,27 @@ def queue_dashboard(patient: Patient = Depends(get_current_patient), db: Session
         "status": ticket.status,
         "queue_position": ticket.queue_position,
         "ahead": ahead,
+        "total_waiting": total_waiting,
         "estimated_minutes": estimated,
         "avg_serve_minutes": avg_serve,
         "progress_percent": progress_percent,
         "notification": notification,
         "checkin_qr": ticket.checkin_qr,
+        "doctor": {
+            "id": doctor.id if doctor else None,
+            "full_name": doctor.full_name if doctor else "",
+            "specialization": doctor.specialization if doctor else "",
+            "gender": doctor.gender if doctor else None,
+            "bio": doctor.bio if doctor else None,
+            "education": doctor.education if doctor else None,
+            "practice_days": doctor.practice_days if doctor else None,
+            "photo_url": f"/uploads/doctors/{doctor.photo_filename}" if doctor and doctor.photo_filename else None,
+        },
+        "poli": {
+            "id": poli.id if poli else None,
+            "name": poli.name if poli else "",
+            "room": poli.room if poli else None,
+            "floor": poli.floor if poli else None,
+            "description": poli.description if poli else None,
+        },
     }

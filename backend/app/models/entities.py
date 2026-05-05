@@ -34,6 +34,9 @@ class Poli(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     name: Mapped[str] = mapped_column(String(120), unique=True)
+    room: Mapped[str | None] = mapped_column(String(60), nullable=True)
+    floor: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    description: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
 
 class Doctor(Base):
@@ -44,6 +47,10 @@ class Doctor(Base):
     specialization: Mapped[str] = mapped_column(String(120))
     poli_id: Mapped[int] = mapped_column(ForeignKey("polis.id"))
     photo_filename: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    gender: Mapped[str | None] = mapped_column(String(10), nullable=True)   # L / P
+    bio: Mapped[str | None] = mapped_column(Text, nullable=True)
+    education: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    practice_days: Mapped[str | None] = mapped_column(String(120), nullable=True)  # e.g. "Senin, Rabu, Jumat"
 
 
 class Schedule(Base):
