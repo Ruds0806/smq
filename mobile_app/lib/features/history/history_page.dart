@@ -310,18 +310,35 @@ class _HistoryPageState extends State<HistoryPage>
                                 ? kSurface2Dark
                                 : kBackground,
                             borderRadius: BorderRadius.circular(9),
-                          ),
-                          child: Text(
-                            row['diagnosis_summary'].toString(),
-                            style: TextStyle(
-                                fontSize: 12,
+                            border: Border.all(
                                 color: isDark
-                                    ? kSecondaryLabelDark
-                                    : kSecondaryLabel,
-                                fontStyle: FontStyle.italic,
-                                height: 1.4),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
+                                    ? kSeparatorDark
+                                    : kSeparator),
+                          ),
+                          child: Row(
+                            crossAxisAlignment:
+                                CrossAxisAlignment.start,
+                            children: [
+                              const Icon(
+                                  Icons.medical_information_outlined,
+                                  size: 13,
+                                  color: kGreen),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  row['diagnosis_summary'].toString(),
+                                  style: TextStyle(
+                                      fontSize: 12,
+                                      color: isDark
+                                          ? kSecondaryLabelDark
+                                          : kSecondaryLabel,
+                                      fontStyle: FontStyle.italic,
+                                      height: 1.4),
+                                  maxLines: 3,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ],

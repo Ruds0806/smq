@@ -473,204 +473,451 @@ class _QueueDashboardPageState extends State<QueueDashboardPage>
     final statusColor = _statusColor(status);
     final progress    = (data!['progress_percent'] as int? ?? 0) / 100;
     final isCalled    = status == 'called' || status == 'serving';
+    final doctor      = data!['doctor'] as Map<String, dynamic>?;
+    final poli        = data!['poli'] as Map<String, dynamic>?;
+    final totalWaiting = data!['total_waiting'] as int? ?? 0;
 
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: isDark ? kSurfaceDark : kSurface,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(
-            color: isDark ? kSeparatorDark : kSeparator),
-        boxShadow: isDark
-            ? []
-            : [
-                BoxShadow(
-                    color: kPrimary.withValues(alpha: 0.07),
-                    blurRadius: 24,
-                    offset: const Offset(0, 6))
-              ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header row
-          Row(
-            children: [
-              _statusBadge(status, statusColor),
-              const Spacer(),
-              Text(
-                data!['ticket_no'].toString(),
-                style: TextStyle(
-                  fontSize: 34,
-                  fontWeight: FontWeight.w900,
-                  color: isDark ? kLabelDark : kLabel,
-                  letterSpacing: -2,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-
-          // Progress bar
-          ClipRRect(
-            borderRadius: BorderRadius.circular(6),
-            child: LinearProgressIndicator(
-              value: progress,
-              minHeight: 6,
-              backgroundColor:
-                  isDark ? kSeparatorDark : kSeparator,
-              valueColor:
-                  AlwaysStoppedAnimation<Color>(statusColor),
-            ),
-          ),
-          const SizedBox(height: 14),
-
-          // Info chips
-          Row(
-            children: [
-              _infoChip(Icons.people_outline_rounded,
-                  '${data!['ahead']} di depan', isDark),
-              const SizedBox(width: 8),
-              _infoChip(Icons.timer_outlined,
-                  '~${data!['estimated_minutes']} mnt', isDark),
-            ],
-          ),
-
-          // Called/serving banner
-          if (isCalled) ...[
-            const SizedBox(height: 16),
-            ScaleTransition(
-              scale: _pulse,
-              child: Container(
-                padding: const EdgeInsets.all(15),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      statusColor.withValues(alpha: 0.1),
-                      statusColor.withValues(alpha: 0.05)
-                    ],
-                  ),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(
-                      color: statusColor.withValues(alpha: 0.3)),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 38,
-                      height: 38,
-                      decoration: BoxDecoration(
-                        color: statusColor.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Icon(
-                        status == 'called'
-                            ? Icons.campaign_rounded
-                            : Icons.medical_services_rounded,
-                        color: statusColor,
-                        size: 20,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        data!['notification'] as String,
-                        style: TextStyle(
-                            color: statusColor,
-                            fontWeight: FontWeight.w700,
-                            fontSize: 13.5),
-                      ),
-                    ),
+    return Column(
+      children: [
+        // ── Ticket status card ──────────────────────────────────────────
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: isDark ? kSurfaceDark : kSurface,
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(
+                color: isDark ? kSeparatorDark : kSeparator),
+            boxShadow: isDark
+                ? []
+                : [
+                    BoxShadow(
+                        color: kPrimary.withValues(alpha: 0.07),
+                        blurRadius: 24,
+                        offset: const Offset(0, 6))
                   ],
-                ),
-              ),
-            ),
-          ],
-
-          const SizedBox(height: 18),
-
-          // QR code
-          Center(
-            child: Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: isDark ? kSurface2Dark : kBackground,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                    color: isDark ? kSeparatorDark : kSeparator),
-              ),
-              child: Column(
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header row
+              Row(
                 children: [
-                  QrImageView(
-                    data: data!['checkin_qr'].toString(),
-                    size: 120,
-                    backgroundColor: Colors.transparent,
-                    eyeStyle: QrEyeStyle(
-                      eyeShape: QrEyeShape.square,
-                      color: isDark ? kLabelDark : kLabel,
-                    ),
-                    dataModuleStyle: QrDataModuleStyle(
-                      dataModuleShape: QrDataModuleShape.square,
-                      color: isDark ? kLabelDark : kLabel,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
+                  _statusBadge(status, statusColor),
+                  const Spacer(),
                   Text(
-                    'QR Check-in Mandiri',
+                    data!['ticket_no'].toString(),
                     style: TextStyle(
-                        fontSize: 11.5,
-                        color: isDark
-                            ? kSecondaryLabelDark
-                            : kSecondaryLabel,
-                        fontWeight: FontWeight.w600),
+                      fontSize: 34,
+                      fontWeight: FontWeight.w900,
+                      color: isDark ? kLabelDark : kLabel,
+                      letterSpacing: -2,
+                    ),
                   ),
                 ],
               ),
-            ),
-          ),
+              const SizedBox(height: 16),
 
-          // Cancel button
-          if (canCancel) ...[
-            const SizedBox(height: 16),
-            GestureDetector(
-              onTap: _cancelling ? null : _cancelTicket,
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 13),
-                decoration: BoxDecoration(
-                  color: kRed.withValues(alpha: 0.06),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                      color: kRed.withValues(alpha: 0.22)),
-                ),
-                child: Center(
-                  child: _cancelling
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(
-                              strokeWidth: 2, color: kRed))
-                      : const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.cancel_outlined,
-                                size: 16, color: kRed),
-                            SizedBox(width: 6),
-                            Text('Batalkan Antrian',
-                                style: TextStyle(
-                                    color: kRed,
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 14)),
-                          ],
-                        ),
+              // Progress bar
+              ClipRRect(
+                borderRadius: BorderRadius.circular(6),
+                child: LinearProgressIndicator(
+                  value: progress,
+                  minHeight: 6,
+                  backgroundColor:
+                      isDark ? kSeparatorDark : kSeparator,
+                  valueColor:
+                      AlwaysStoppedAnimation<Color>(statusColor),
                 ),
               ),
-            ),
-          ],
+              const SizedBox(height: 14),
+
+              // Info chips row
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _infoChip(Icons.people_outline_rounded,
+                      '${data!['ahead']} di depan', isDark),
+                  _infoChip(Icons.timer_outlined,
+                      '~${data!['estimated_minutes']} mnt', isDark),
+                  _infoChip(Icons.queue_rounded,
+                      '$totalWaiting menunggu', isDark),
+                ],
+              ),
+
+              // Called/serving banner
+              if (isCalled) ...[
+                const SizedBox(height: 16),
+                ScaleTransition(
+                  scale: _pulse,
+                  child: Container(
+                    padding: const EdgeInsets.all(15),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          statusColor.withValues(alpha: 0.1),
+                          statusColor.withValues(alpha: 0.05)
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                          color: statusColor.withValues(alpha: 0.3)),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 38,
+                          height: 38,
+                          decoration: BoxDecoration(
+                            color: statusColor.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Icon(
+                            status == 'called'
+                                ? Icons.campaign_rounded
+                                : Icons.medical_services_rounded,
+                            color: statusColor,
+                            size: 20,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            data!['notification'] as String,
+                            style: TextStyle(
+                                color: statusColor,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 13.5),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+
+              const SizedBox(height: 18),
+
+              // QR code
+              Center(
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: isDark ? kSurface2Dark : kBackground,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                        color: isDark ? kSeparatorDark : kSeparator),
+                  ),
+                  child: Column(
+                    children: [
+                      QrImageView(
+                        data: data!['checkin_qr'].toString(),
+                        size: 120,
+                        backgroundColor: Colors.transparent,
+                        eyeStyle: QrEyeStyle(
+                          eyeShape: QrEyeShape.square,
+                          color: isDark ? kLabelDark : kLabel,
+                        ),
+                        dataModuleStyle: QrDataModuleStyle(
+                          dataModuleShape: QrDataModuleShape.square,
+                          color: isDark ? kLabelDark : kLabel,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'QR Check-in Mandiri',
+                        style: TextStyle(
+                            fontSize: 11.5,
+                            color: isDark
+                                ? kSecondaryLabelDark
+                                : kSecondaryLabel,
+                            fontWeight: FontWeight.w600),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              // Cancel button
+              if (canCancel) ...[
+                const SizedBox(height: 16),
+                GestureDetector(
+                  onTap: _cancelling ? null : _cancelTicket,
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 13),
+                    decoration: BoxDecoration(
+                      color: kRed.withValues(alpha: 0.06),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                          color: kRed.withValues(alpha: 0.22)),
+                    ),
+                    child: Center(
+                      child: _cancelling
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                  strokeWidth: 2, color: kRed))
+                          : const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.cancel_outlined,
+                                    size: 16, color: kRed),
+                                SizedBox(width: 6),
+                                Text('Batalkan Antrian',
+                                    style: TextStyle(
+                                        color: kRed,
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: 14)),
+                              ],
+                            ),
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+
+        // ── Poli info card ──────────────────────────────────────────────
+        if (poli != null) ...[
+          const SizedBox(height: 12),
+          _buildPoliInfoCard(poli, isDark),
         ],
-      ),
+
+        // ── Doctor profile card ─────────────────────────────────────────
+        if (doctor != null) ...[
+          const SizedBox(height: 12),
+          _buildDoctorCard(doctor, isDark),
+        ],
+      ],
     );
   }
+
+  Widget _buildPoliInfoCard(Map<String, dynamic> poli, bool isDark) =>
+      Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: isDark ? kSurfaceDark : kSurface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+              color: isDark ? kSeparatorDark : kSeparator),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: kPrimary.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(11),
+              ),
+              child: const Icon(Icons.local_hospital_rounded,
+                  color: kPrimary, size: 22),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    poli['name']?.toString() ?? '',
+                    style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 14,
+                        color: isDark ? kLabelDark : kLabel),
+                  ),
+                  if (poli['description'] != null)
+                    Text(
+                      poli['description'].toString(),
+                      style: TextStyle(
+                          fontSize: 12,
+                          color: isDark
+                              ? kSecondaryLabelDark
+                              : kSecondaryLabel),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                ],
+              ),
+            ),
+            if (poli['room'] != null || poli['floor'] != null)
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  if (poli['room'] != null)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: kPrimary.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        poli['room'].toString(),
+                        style: const TextStyle(
+                            fontSize: 11,
+                            color: kPrimary,
+                            fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                  if (poli['floor'] != null) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      poli['floor'].toString(),
+                      style: TextStyle(
+                          fontSize: 11,
+                          color: isDark
+                              ? kSecondaryLabelDark
+                              : kSecondaryLabel),
+                    ),
+                  ],
+                ],
+              ),
+          ],
+        ),
+      );
+
+  Widget _buildDoctorCard(Map<String, dynamic> doctor, bool isDark) =>
+      Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: isDark ? kSurfaceDark : kSurface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+              color: isDark ? kSeparatorDark : kSeparator),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                // Avatar
+                CircleAvatar(
+                  radius: 26,
+                  backgroundColor: kPrimary.withValues(alpha: 0.1),
+                  backgroundImage: doctor['photo_url'] != null
+                      ? NetworkImage(ApiClient.resolveUrl(
+                          doctor['photo_url'].toString()))
+                      : null,
+                  child: doctor['photo_url'] == null
+                      ? Text(
+                          (doctor['full_name']?.toString() ?? 'D')
+                              .substring(0, 1),
+                          style: const TextStyle(
+                              color: kPrimary,
+                              fontWeight: FontWeight.w800,
+                              fontSize: 20),
+                        )
+                      : null,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        doctor['full_name']?.toString() ?? '',
+                        style: TextStyle(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 14,
+                            color: isDark ? kLabelDark : kLabel),
+                      ),
+                      Text(
+                        doctor['specialization']?.toString() ?? '',
+                        style: TextStyle(
+                            fontSize: 12,
+                            color: isDark
+                                ? kSecondaryLabelDark
+                                : kSecondaryLabel),
+                      ),
+                    ],
+                  ),
+                ),
+                if (doctor['gender'] != null)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: (doctor['gender'] == 'L'
+                              ? const Color(0xFF3B82F6)
+                              : kPurple)
+                          .withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      doctor['gender'] == 'L' ? '♂ Laki-laki' : '♀ Perempuan',
+                      style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: doctor['gender'] == 'L'
+                              ? const Color(0xFF3B82F6)
+                              : kPurple),
+                    ),
+                  ),
+              ],
+            ),
+            if (doctor['bio'] != null) ...[
+              const SizedBox(height: 12),
+              Text(
+                doctor['bio'].toString(),
+                style: TextStyle(
+                    fontSize: 12.5,
+                    color: isDark
+                        ? kSecondaryLabelDark
+                        : kSecondaryLabel,
+                    height: 1.5),
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+            if (doctor['education'] != null ||
+                doctor['practice_days'] != null) ...[
+              const SizedBox(height: 12),
+              Divider(
+                  height: 0.5,
+                  thickness: 0.5,
+                  color: isDark ? kSeparatorDark : kSeparator),
+              const SizedBox(height: 12),
+              if (doctor['education'] != null)
+                _doctorInfoRow(
+                    Icons.school_outlined,
+                    doctor['education'].toString(),
+                    isDark),
+              if (doctor['practice_days'] != null) ...[
+                const SizedBox(height: 6),
+                _doctorInfoRow(
+                    Icons.calendar_today_outlined,
+                    'Praktik: ${doctor['practice_days']}',
+                    isDark),
+              ],
+            ],
+          ],
+        ),
+      );
+
+  Widget _doctorInfoRow(IconData icon, String text, bool isDark) =>
+      Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon,
+              size: 14,
+              color: isDark ? kSecondaryLabelDark : kSecondaryLabel),
+          const SizedBox(width: 7),
+          Expanded(
+            child: Text(
+              text,
+              style: TextStyle(
+                  fontSize: 12,
+                  color: isDark
+                      ? kSecondaryLabelDark
+                      : kSecondaryLabel,
+                  height: 1.4),
+            ),
+          ),
+        ],
+      );
 
   Widget _statusBadge(String status, Color color) => Container(
         padding:
@@ -880,9 +1127,16 @@ class _QueueDashboardPageState extends State<QueueDashboardPage>
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 3),
-                    const Text('Ambil antrian →',
-                        style: TextStyle(
-                            color: Colors.white70, fontSize: 11.5)),
+                    if (poli['room'] != null)
+                      Text(
+                        '${poli['room']} · ${poli['floor'] ?? ''}',
+                        style: const TextStyle(
+                            color: Colors.white70, fontSize: 10.5),
+                      )
+                    else
+                      const Text('Ambil antrian →',
+                          style: TextStyle(
+                              color: Colors.white70, fontSize: 11.5)),
                   ],
                 ),
               ],

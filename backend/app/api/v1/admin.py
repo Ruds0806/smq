@@ -525,6 +525,46 @@ def stats(db: Session = Depends(get_db)):
     }
 
 
+@router.get("/doctors/{doctor_id}")
+def get_doctor(doctor_id: int, db: Session = Depends(get_db)):
+    row = (
+        db.query(Doctor, Poli.name.label("poli_name"), Poli.room.label("room"), Poli.floor.label("floor"))
+        .join(Poli, Poli.id == Doctor.poli_id)
+        .filter(Doctor.id == doctor_id)
+        .first()
+    )
+    if not row:
+        raise HTTPException(status_code=404, detail="Dokter tidak ditemukan")
+    doctor, poli_name, room, floor = row
+    # Count today's queue for this doctor
+    from datetime import date
+    today_schedules = db.query(Schedule).filter(
+        Schedule.doctor_id == doctor_id,
+        Schedule.date == date.today().isoformat(),
+    ).all()
+    today_waiting = 0
+    for s in today_schedules:
+        today_waiting += db.query(QueueTicket).filter(
+            QueueTicket.schedule_id == s.id,
+            QueueTicket.status == "waiting",
+        ).count()
+    return {
+        "id": doctor.id,
+        "full_name": doctor.full_name,
+        "specialization": doctor.specialization,
+        "gender": doctor.gender,
+        "bio": doctor.bio,
+        "education": doctor.education,
+        "practice_days": doctor.practice_days,
+        "poli_id": doctor.poli_id,
+        "poli_name": poli_name,
+        "room": room,
+        "floor": floor,
+        "photo_url": _photo_url(doctor.photo_filename),
+        "today_waiting": today_waiting,
+    }
+
+
 @router.get("/doctors")
 def list_doctors(db: Session = Depends(get_db)):
     rows = (
@@ -538,6 +578,10 @@ def list_doctors(db: Session = Depends(get_db)):
             "id": doctor.id,
             "full_name": doctor.full_name,
             "specialization": doctor.specialization,
+            "gender": doctor.gender,
+            "bio": doctor.bio,
+            "education": doctor.education,
+            "practice_days": doctor.practice_days,
             "poli_id": doctor.poli_id,
             "poli_name": poli_name,
             "photo_filename": doctor.photo_filename,
@@ -666,92 +710,171 @@ def recent_visits(db: Session = Depends(get_db)):
 
 
 @router.post("/seed")
-def seed_master_data(db: Session = Depends(get_db)):
+def seed_master_data(db: Session = Depends(get_db)):  # noqa: C901
+    from app.api.v1._seed_data import POLIS, DOCTORS, STAFF, VISIT_DIAGNOSES
+
+    # ── 1. Poli ──────────────────────────────────────────────────────────────
     if db.query(func.count(Poli.id)).scalar() == 0:
-        poli_names = ["Poli Umum", "Poli Anak", "Poli Jantung", "Poli Mata"]
-        for name in poli_names:
-            db.add(Poli(name=name))
+        for p in POLIS:
+            db.add(Poli(name=p["name"], room=p["room"], floor=p["floor"], description=p["description"]))
+        db.commit()
+    else:
+        # Update room/floor/description for existing polis
+        for p in POLIS:
+            existing = db.query(Poli).filter(Poli.name == p["name"]).first()
+            if existing:
+                existing.room = p["room"]
+                existing.floor = p["floor"]
+                existing.description = p["description"]
         db.commit()
 
+    poli_map = {p.name: p.id for p in db.query(Poli).all()}
+
+    # ── 2. Doctors ───────────────────────────────────────────────────────────
     if db.query(func.count(Doctor.id)).scalar() == 0:
-        poli_rows = db.query(Poli).all()
-        for p in poli_rows:
-            db.add(Doctor(full_name=f"dr. {p.name.split()[-1]} 1", specialization=p.name, poli_id=p.id, photo_filename=None))
-            db.add(Doctor(full_name=f"dr. {p.name.split()[-1]} 2", specialization=p.name, poli_id=p.id, photo_filename=None))
+        for d in DOCTORS:
+            poli_id = poli_map.get(d["poli"])
+            if not poli_id:
+                continue
+            db.add(Doctor(
+                full_name=d["name"],
+                specialization=d["spec"],
+                poli_id=poli_id,
+                gender=d["gender"],
+                bio=d["bio"],
+                education=d["edu"],
+                practice_days=d["days"],
+                photo_filename=None,
+            ))
+        db.commit()
+    else:
+        # Update bio/education/practice_days for existing doctors
+        for d in DOCTORS:
+            existing = db.query(Doctor).filter(Doctor.full_name == d["name"]).first()
+            if existing:
+                existing.gender = d["gender"]
+                existing.bio = d["bio"]
+                existing.education = d["edu"]
+                existing.practice_days = d["days"]
         db.commit()
 
+    # ── 3. Schedules ─────────────────────────────────────────────────────────
     if db.query(func.count(Schedule.id)).scalar() == 0:
         docs = db.query(Doctor).all()
-        for d in docs:
-            db.add(Schedule(doctor_id=d.id, poli_id=d.poli_id, date="2026-04-23", start_time="08:00", end_time="12:00", quota=40))
-            db.add(Schedule(doctor_id=d.id, poli_id=d.poli_id, date="2026-04-24", start_time="13:00", end_time="16:00", quota=30))
-        db.commit()
-
-    if db.query(func.count(Patient.id)).scalar() == 0:
-        patients = [
-            Patient(phone="0811111111", full_name="Siti Aisyah", password_hash=hash_password("123456"), national_id="3201010101010001", medical_record_no="RM-0001"),
-            Patient(phone="0822222222", full_name="Budi Santoso", password_hash=hash_password("123456"), national_id="3201010101010002", medical_record_no="RM-0002"),
-            Patient(phone="0833333333", full_name="Rina Marlina", password_hash=hash_password("123456"), national_id="3201010101010003", medical_record_no="RM-0003"),
+        # Generate schedules for next 14 days
+        from datetime import date, timedelta
+        today = date.today()
+        slots = [
+            ("08:00", "12:00", 40),
+            ("13:00", "16:00", 30),
         ]
-        db.add_all(patients)
+        for d in docs:
+            for offset in range(14):
+                day = today + timedelta(days=offset)
+                # Alternate slots per doctor to avoid all having same schedule
+                slot = slots[d.id % 2]
+                db.add(Schedule(
+                    doctor_id=d.id,
+                    poli_id=d.poli_id,
+                    date=day.isoformat(),
+                    start_time=slot[0],
+                    end_time=slot[1],
+                    quota=slot[2],
+                ))
         db.commit()
 
-    seeded_updates = {
-        "0811111111": {"medical_record_no": "RM-0001", "national_id": "3201010101010001"},
-        "0822222222": {"medical_record_no": "RM-0002", "national_id": "3201010101010002"},
-        "0833333333": {"medical_record_no": "RM-0003", "national_id": "3201010101010003"},
-    }
-    changed = False
-    for phone, payload in seeded_updates.items():
-        patient = db.query(Patient).filter(Patient.phone == phone).first()
-        if not patient:
-            continue
-        if not patient.medical_record_no:
-            patient.medical_record_no = payload["medical_record_no"]
-            changed = True
-        if not patient.national_id:
-            patient.national_id = payload["national_id"]
-            changed = True
-        if patient.password_hash == "seed":
-            patient.password_hash = hash_password("123456")
-            changed = True
-    if changed:
-        db.commit()
+    # ── 4. Patients ──────────────────────────────────────────────────────────
+    demo_patients = [
+        {"phone": "0811111111", "name": "Siti Aisyah",      "nik": "3201010101010001", "rm": "RM-0001", "birth": "1985-03-15"},
+        {"phone": "0822222222", "name": "Budi Santoso",     "nik": "3201010101010002", "rm": "RM-0002", "birth": "1978-07-22"},
+        {"phone": "0833333333", "name": "Rina Marlina",     "nik": "3201010101010003", "rm": "RM-0003", "birth": "1992-11-08"},
+        {"phone": "0844444444", "name": "Agus Purnomo",     "nik": "3201010101010004", "rm": "RM-0004", "birth": "1965-05-30"},
+        {"phone": "0855555555", "name": "Dewi Anggraini",   "nik": "3201010101010005", "rm": "RM-0005", "birth": "1990-09-12"},
+    ]
+    for p in demo_patients:
+        existing = db.query(Patient).filter(Patient.phone == p["phone"]).first()
+        if not existing:
+            db.add(Patient(
+                phone=p["phone"],
+                full_name=p["name"],
+                password_hash=hash_password("123456"),
+                national_id=p["nik"],
+                medical_record_no=p["rm"],
+                birth_date=p["birth"],
+            ))
+        else:
+            if not existing.medical_record_no:
+                existing.medical_record_no = p["rm"]
+            if not existing.national_id:
+                existing.national_id = p["nik"]
+            if not existing.birth_date:
+                existing.birth_date = p["birth"]
+    db.commit()
 
+    # ── 5. Queue tickets (demo) ───────────────────────────────────────────────
     if db.query(func.count(QueueTicket.id)).scalar() == 0:
-        patients = db.query(Patient).all()
-        doctors = db.query(Doctor).all()
+        patients  = db.query(Patient).all()
         schedules = db.query(Schedule).all()
-        if patients and doctors and schedules:
-            queue_rows = [
-                QueueTicket(ticket_no="A-001", patient_id=patients[0].id, poli_id=doctors[0].poli_id, doctor_id=doctors[0].id, schedule_id=schedules[0].id, status="waiting", estimated_minutes=18, queue_position=1, checkin_qr="seed-1"),
-                QueueTicket(ticket_no="A-002", patient_id=patients[1].id, poli_id=doctors[1].poli_id, doctor_id=doctors[1].id, schedule_id=schedules[1].id, status="called", estimated_minutes=8, queue_position=2, checkin_qr="seed-2", registration_channel="on_site"),
-                QueueTicket(ticket_no="A-003", patient_id=patients[2].id, poli_id=doctors[2].poli_id, doctor_id=doctors[2].id, schedule_id=schedules[2].id, status="serving", estimated_minutes=0, queue_position=3, checkin_qr="seed-3", registration_channel="online"),
+        doctors   = db.query(Doctor).all()
+        if patients and schedules and doctors:
+            demo_tickets = [
+                QueueTicket(ticket_no="A-001", patient_id=patients[0].id, poli_id=doctors[0].poli_id,
+                            doctor_id=doctors[0].id, schedule_id=schedules[0].id,
+                            status="waiting", estimated_minutes=18, queue_position=1, checkin_qr="seed-1"),
+                QueueTicket(ticket_no="A-002", patient_id=patients[1].id, poli_id=doctors[1].poli_id,
+                            doctor_id=doctors[1].id, schedule_id=schedules[1].id,
+                            status="called", estimated_minutes=8, queue_position=2,
+                            checkin_qr="seed-2", registration_channel="on_site"),
+                QueueTicket(ticket_no="A-003", patient_id=patients[2].id, poli_id=doctors[2].poli_id,
+                            doctor_id=doctors[2].id, schedule_id=schedules[2].id,
+                            status="serving", estimated_minutes=0, queue_position=3,
+                            checkin_qr="seed-3"),
             ]
-            db.add_all(queue_rows)
+            db.add_all(demo_tickets)
             db.commit()
 
+    # ── 6. Visit histories ────────────────────────────────────────────────────
     if db.query(func.count(VisitHistory.id)).scalar() == 0:
         patients = db.query(Patient).all()
         if patients:
-            db.add_all([
-                VisitHistory(patient_id=patients[0].id, doctor_name="dr. Andi", poli_name="Poli Umum", diagnosis_summary="Kontrol rutin dan resep obat", visit_date="2026-04-20"),
-                VisitHistory(patient_id=patients[1].id, doctor_name="dr. Sari", poli_name="Poli Anak", diagnosis_summary="Demam ringan, observasi lanjutan", visit_date="2026-04-21"),
-            ])
+            from datetime import date, timedelta
+            today = date.today()
+            histories = []
+            for i, (diagnosis, poli_name) in enumerate(VISIT_DIAGNOSES):
+                patient = patients[i % len(patients)]
+                doc_in_poli = db.query(Doctor).join(Poli, Poli.id == Doctor.poli_id).filter(Poli.name == poli_name).first()
+                doctor_name = doc_in_poli.full_name if doc_in_poli else "dr. Umum"
+                visit_date = (today - timedelta(days=i * 7 + 3)).isoformat()
+                histories.append(VisitHistory(
+                    patient_id=patient.id,
+                    doctor_name=doctor_name,
+                    poli_name=poli_name,
+                    diagnosis_summary=diagnosis,
+                    visit_date=visit_date,
+                ))
+            db.add_all(histories)
             db.commit()
 
-    # Seed default admin users
-    if db.query(func.count(AdminUser.id)).scalar() == 0:
-        default_admins = [
-            AdminUser(username="administrator", password_hash=hash_password("admin123"), role="administrator"),
-            AdminUser(username="petugas", password_hash=hash_password("panggil123"), role="petugas"),
-            AdminUser(username="console", password_hash=hash_password("console123"), role="console"),
-            AdminUser(username="display", password_hash=hash_password("display123"), role="display"),
-        ]
-        db.add_all(default_admins)
-        db.commit()
+    # ── 7. Admin users ────────────────────────────────────────────────────────
+    for s in STAFF:
+        existing = db.query(AdminUser).filter(AdminUser.username == s["username"]).first()
+        if not existing:
+            db.add(AdminUser(
+                username=s["username"],
+                password_hash=hash_password(s["password"]),
+                role=s["role"],
+            ))
+    db.commit()
 
-    return {"message": "Seed completed"}
+    return {
+        "message": "Seed completed",
+        "polis": db.query(func.count(Poli.id)).scalar(),
+        "doctors": db.query(func.count(Doctor.id)).scalar(),
+        "schedules": db.query(func.count(Schedule.id)).scalar(),
+        "patients": db.query(func.count(Patient.id)).scalar(),
+        "admin_users": db.query(func.count(AdminUser.id)).scalar(),
+        "visit_histories": db.query(func.count(VisitHistory.id)).scalar(),
+    }
 
 
 # ── Admin Auth ──────────────────────────────────────────────────────────────

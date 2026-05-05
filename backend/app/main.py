@@ -46,6 +46,52 @@ def on_startup():
     if "photo_filename" not in doctor_columns:
         with engine.begin() as conn:
             conn.execute(text("ALTER TABLE doctors ADD COLUMN photo_filename VARCHAR(255)"))
+    if "gender" not in doctor_columns:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE doctors ADD COLUMN gender VARCHAR(10)"))
+    if "bio" not in doctor_columns:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE doctors ADD COLUMN bio TEXT"))
+    if "education" not in doctor_columns:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE doctors ADD COLUMN education VARCHAR(255)"))
+    if "practice_days" not in doctor_columns:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE doctors ADD COLUMN practice_days VARCHAR(120)"))
+
+    poli_columns = {c["name"] for c in inspector.get_columns("polis")}
+    if "room" not in poli_columns:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE polis ADD COLUMN room VARCHAR(60)"))
+    if "floor" not in poli_columns:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE polis ADD COLUMN floor VARCHAR(30)"))
+    if "description" not in poli_columns:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE polis ADD COLUMN description VARCHAR(255)"))
+    if "gender" not in doctor_columns:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE doctors ADD COLUMN gender VARCHAR(10)"))
+    if "bio" not in doctor_columns:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE doctors ADD COLUMN bio TEXT"))
+    if "education" not in doctor_columns:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE doctors ADD COLUMN education VARCHAR(255)"))
+    if "practice_days" not in doctor_columns:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE doctors ADD COLUMN practice_days VARCHAR(120)"))
+
+    poli_columns = {c["name"] for c in inspector.get_columns("polis")}
+    if "room" not in poli_columns:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE polis ADD COLUMN room VARCHAR(60)"))
+    if "floor" not in poli_columns:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE polis ADD COLUMN floor VARCHAR(30)"))
+    if "description" not in poli_columns:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE polis ADD COLUMN description VARCHAR(255)"))
 
     queue_columns = {c["name"] for c in inspector.get_columns("queue_tickets")}
     if "registration_channel" not in queue_columns:

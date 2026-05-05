@@ -188,6 +188,11 @@ class _TakeQueuePageState extends State<TakeQueuePage> {
               _loadSchedules();
             },
           ),
+          // Doctor profile card
+          if (selectedDoctorData != null) ...[
+            const SizedBox(height: 10),
+            _buildDoctorProfileCard(selectedDoctorData, isDark),
+          ],
           const SizedBox(height: 22),
 
           // Step 3
@@ -261,6 +266,119 @@ class _TakeQueuePageState extends State<TakeQueuePage> {
       ),
     );
   }
+
+  Widget _buildDoctorProfileCard(Map<String, dynamic> doctor, bool isDark) =>
+      Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: kPrimary.withValues(alpha: 0.04),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: kPrimary.withValues(alpha: 0.15)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                CircleAvatar(
+                  radius: 24,
+                  backgroundColor: kPrimary.withValues(alpha: 0.1),
+                  backgroundImage: doctor['photo_url'] != null
+                      ? NetworkImage(ApiClient.resolveUrl(
+                          doctor['photo_url'].toString()))
+                      : null,
+                  child: doctor['photo_url'] == null
+                      ? Text(
+                          (doctor['full_name']?.toString() ?? 'D')
+                              .substring(0, 1),
+                          style: const TextStyle(
+                              color: kPrimary,
+                              fontWeight: FontWeight.w800,
+                              fontSize: 18),
+                        )
+                      : null,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        doctor['full_name']?.toString() ?? '',
+                        style: TextStyle(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 13.5,
+                            color: isDark ? kLabelDark : kLabel),
+                      ),
+                      Text(
+                        doctor['specialization']?.toString() ?? '',
+                        style: TextStyle(
+                            fontSize: 12,
+                            color: isDark
+                                ? kSecondaryLabelDark
+                                : kSecondaryLabel),
+                      ),
+                    ],
+                  ),
+                ),
+                if (doctor['avg_serve_minutes'] != null)
+                  Column(
+                    children: [
+                      Text(
+                        '${doctor['avg_serve_minutes']}',
+                        style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                            color: kPrimary),
+                      ),
+                      Text('mnt/pasien',
+                          style: TextStyle(
+                              fontSize: 9,
+                              color: isDark
+                                  ? kSecondaryLabelDark
+                                  : kSecondaryLabel)),
+                    ],
+                  ),
+              ],
+            ),
+            if (doctor['bio'] != null) ...[
+              const SizedBox(height: 10),
+              Text(
+                doctor['bio'].toString(),
+                style: TextStyle(
+                    fontSize: 12,
+                    color: isDark
+                        ? kSecondaryLabelDark
+                        : kSecondaryLabel,
+                    height: 1.5),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+            if (doctor['practice_days'] != null) ...[
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Icon(Icons.calendar_today_outlined,
+                      size: 12,
+                      color: isDark
+                          ? kSecondaryLabelDark
+                          : kSecondaryLabel),
+                  const SizedBox(width: 5),
+                  Text(
+                    'Praktik: ${doctor['practice_days']}',
+                    style: TextStyle(
+                        fontSize: 11.5,
+                        color: isDark
+                            ? kSecondaryLabelDark
+                            : kSecondaryLabel),
+                  ),
+                ],
+              ),
+            ],
+          ],
+        ),
+      );
 
   Widget _buildStepIndicator(bool isDark) {
     final steps = ['Poli', 'Dokter', 'Jadwal'];
