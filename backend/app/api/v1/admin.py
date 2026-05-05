@@ -714,28 +714,25 @@ def seed_master_data(db: Session = Depends(get_db)):  # noqa: C901
     from app.api.v1._seed_data import POLIS, DOCTORS, STAFF, VISIT_DIAGNOSES
 
     # ── 1. Poli ──────────────────────────────────────────────────────────────
-    if db.query(func.count(Poli.id)).scalar() == 0:
-        for p in POLIS:
+    for p in POLIS:
+        existing = db.query(Poli).filter(Poli.name == p["name"]).first()
+        if not existing:
             db.add(Poli(name=p["name"], room=p["room"], floor=p["floor"], description=p["description"]))
-        db.commit()
-    else:
-        # Update room/floor/description for existing polis
-        for p in POLIS:
-            existing = db.query(Poli).filter(Poli.name == p["name"]).first()
-            if existing:
-                existing.room = p["room"]
-                existing.floor = p["floor"]
-                existing.description = p["description"]
-        db.commit()
+        else:
+            existing.room = p["room"]
+            existing.floor = p["floor"]
+            existing.description = p["description"]
+    db.commit()
 
     poli_map = {p.name: p.id for p in db.query(Poli).all()}
 
     # ── 2. Doctors ───────────────────────────────────────────────────────────
-    if db.query(func.count(Doctor.id)).scalar() == 0:
-        for d in DOCTORS:
-            poli_id = poli_map.get(d["poli"])
-            if not poli_id:
-                continue
+    for d in DOCTORS:
+        poli_id = poli_map.get(d["poli"])
+        if not poli_id:
+            continue
+        existing = db.query(Doctor).filter(Doctor.full_name == d["name"]).first()
+        if not existing:
             db.add(Doctor(
                 full_name=d["name"],
                 specialization=d["spec"],
@@ -746,32 +743,28 @@ def seed_master_data(db: Session = Depends(get_db)):  # noqa: C901
                 practice_days=d["days"],
                 photo_filename=None,
             ))
-        db.commit()
-    else:
-        # Update bio/education/practice_days for existing doctors
-        for d in DOCTORS:
-            existing = db.query(Doctor).filter(Doctor.full_name == d["name"]).first()
-            if existing:
-                existing.gender = d["gender"]
-                existing.bio = d["bio"]
-                existing.education = d["edu"]
-                existing.practice_days = d["days"]
-        db.commit()
+        else:
+            existing.specialization = d["spec"]
+            existing.poli_id = poli_id
+            existing.gender = d["gender"]
+            existing.bio = d["bio"]
+            existing.education = d["edu"]
+            existing.practice_days = d["days"]
+    db.commit()
 
     # ── 3. Schedules ─────────────────────────────────────────────────────────
-    if db.query(func.count(Schedule.id)).scalar() == 0:
-        docs = db.query(Doctor).all()
-        # Generate schedules for next 14 days
-        from datetime import date, timedelta
-        today = date.today()
-        slots = [
-            ("08:00", "12:00", 40),
-            ("13:00", "16:00", 30),
-        ]
-        for d in docs:
+    # Add schedules for next 14 days for any doctor that has none
+    from datetime import date, timedelta
+    today = date.today()
+    slots = [("08:00", "12:00", 40), ("13:00", "16:00", 30)]
+    docs = db.query(Doctor).all()
+    for d in docs:
+        existing_count = db.query(func.count(Schedule.id)).filter(
+            Schedule.doctor_id == d.id
+        ).scalar() or 0
+        if existing_count == 0:
             for offset in range(14):
                 day = today + timedelta(days=offset)
-                # Alternate slots per doctor to avoid all having same schedule
                 slot = slots[d.id % 2]
                 db.add(Schedule(
                     doctor_id=d.id,
@@ -781,7 +774,7 @@ def seed_master_data(db: Session = Depends(get_db)):  # noqa: C901
                     end_time=slot[1],
                     quota=slot[2],
                 ))
-        db.commit()
+    db.commit()
 
     # ── 4. Patients ──────────────────────────────────────────────────────────
     demo_patients = [
